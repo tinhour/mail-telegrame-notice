@@ -48,14 +48,17 @@ service_checks:
       url: "https://rpc.ankr.com/multichain/498c84e3e1b62890931577d9a7a5eb46b4af57a32bb903ff2b1bb9401d8d77aa"
       method: "POST"
       expected_status: 200
-      expected_content: '"result"'
+      expected_content: '"blockchain":"eth"'  # 简单字符串匹配作为备用检查
       headers:
         Content-Type: "application/json"
       interval_minutes: 60  # 每60分钟（1小时）检查一次
+      json_check:
+        path: "result.stats[0].blockchain"
+        expected_value: "eth"
       body: |
         {
           "jsonrpc": "2.0",
-          "method": "ankr_getCurrencies",
+          "method": "ankr_getBlockchainStats",
           "params": {
             "blockchain": "eth"
           },

@@ -1,6 +1,7 @@
 import logging
 import requests
 import time
+import json
 from datetime import datetime
 
 from app.config.settings import CONFIG
@@ -18,7 +19,8 @@ class ServiceChecker:
         self.status_history = {}  # 存储服务状态历史
         self.default_interval = self.config.get("interval_minutes", 5)  # 默认检查间隔（分钟）
     
-    def add_endpoint(self, name, url, expected_status=200, expected_content=None, headers=None, method="GET", body=None, interval_minutes=None):
+    def add_endpoint(self, name, url, expected_status=200, expected_content=None, headers=None, 
+                     method="GET", body=None, interval_minutes=None, json_check=None):
         """
         添加服务检查端点
         
@@ -31,6 +33,7 @@ class ServiceChecker:
             method: 请求方法（GET或POST）
             body: 请求体（用于POST请求）
             interval_minutes: 检查间隔时间（分钟）
+            json_check: JSON响应检查配置，格式为 {"path": "key1.key2[0].key3", "expected_value": "value"}
         """
         endpoint = {
             "name": name,
@@ -40,7 +43,8 @@ class ServiceChecker:
             "headers": headers or {},
             "method": method.upper(),
             "body": body,
-            "interval_minutes": interval_minutes or self.default_interval
+            "interval_minutes": interval_minutes or self.default_interval,
+            "json_check": json_check
         }
         self.endpoints.append(endpoint)
         logger.info(f"添加服务检查端点: {name} - {url} ({method}), 检查间隔: {endpoint['interval_minutes']}分钟")
@@ -64,6 +68,46 @@ class ServiceChecker:
                     return ep.get("interval_minutes", self.default_interval)
         return self.default_interval
     
+    def _check_json_path(self, json_data, path, expected_value):
+        """
+        检查JSON数据中指定路径的值是否匹配预期
+        
+        Args:
+            json_data: JSON数据（字典）
+            path: 数据路径，格式如 "result.stats[0].blockchain"
+            expected_value: 预期值
+            
+        Returns:
+            bool: 是否匹配
+        """
+        try:
+            # 解析路径
+            parts = path.split('.')
+            current = json_data
+            
+            for part in parts:
+                # 处理数组索引，如 stats[0]
+                if '[' in part and ']' in part:
+                    key, idx_str = part.split('[', 1)
+                    idx = int(idx_str.split(']')[0])
+                    current = current.get(key, [])[idx]
+                else:
+                    current = current.get(part)
+                
+                # 如果路径中途断了，返回False
+                if current is None:
+                    logger.debug(f"JSON路径 {path} 中的部分 {part} 不存在")
+                    return False
+            
+            # 比较最终值
+            result = str(current) == str(expected_value)
+            logger.debug(f"JSON检查: 路径={path}, 实际值={current}, 预期值={expected_value}, 结果={result}")
+            return result
+            
+        except (KeyError, IndexError, AttributeError, TypeError) as e:
+            logger.warning(f"JSON检查失败: {str(e)}")
+            return False
+    
     def check_service(self, endpoint):
         """
         检查单个服务状态
@@ -81,6 +125,7 @@ class ServiceChecker:
         expected_content = endpoint.get("expected_content")
         headers = endpoint.get("headers", {})
         body = endpoint.get("body")
+        json_check = endpoint.get("json_check")
         
         start_time = time.time()
         try:
@@ -97,12 +142,29 @@ class ServiceChecker:
             # 检查状态码
             status_ok = response.status_code == expected_status
             
-            # 检查返回内容
+            # 检查返回内容（字符串匹配）
             content_ok = True
             if expected_content and expected_content not in response.text:
                 content_ok = False
             
-            if status_ok and content_ok:
+            # 检查JSON结构（如果配置了）
+            json_ok = True
+            if json_check and status_ok:
+                try:
+                    json_data = response.json()
+                    json_ok = self._check_json_path(
+                        json_data, 
+                        json_check["path"], 
+                        json_check["expected_value"]
+                    )
+                except json.JSONDecodeError:
+                    logger.warning(f"服务 {name} 返回的不是有效的JSON数据")
+                    json_ok = False
+            
+            # 最终检查结果
+            check_ok = status_ok and content_ok and json_ok
+            
+            if check_ok:
                 return True, f"服务正常 ({response.status_code}, {response_time:.2f}s)"
             else:
                 fail_reason = []
@@ -110,6 +172,8 @@ class ServiceChecker:
                     fail_reason.append(f"状态码 {response.status_code} (预期 {expected_status})")
                 if not content_ok:
                     fail_reason.append("返回内容不符合预期")
+                if not json_ok and json_check:
+                    fail_reason.append(f"JSON字段检查失败: {json_check['path']}")
                 
                 return False, f"服务异常: {', '.join(fail_reason)}"
                 

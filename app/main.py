@@ -73,7 +73,8 @@ def manage_endpoints():
             headers=data.get('headers'),
             method=data.get('method', 'GET'),
             body=data.get('body'),
-            interval_minutes=data.get('interval_minutes')
+            interval_minutes=data.get('interval_minutes'),
+            json_check=data.get('json_check')
         )
         
         # 如果调度器已启动，为新端点添加任务
@@ -145,7 +146,8 @@ def setup_services():
                     headers=endpoint.get("headers"),
                     method=endpoint.get("method", "GET"),
                     body=endpoint.get("body"),
-                    interval_minutes=endpoint.get("interval_minutes")
+                    interval_minutes=endpoint.get("interval_minutes"),
+                    json_check=endpoint.get("json_check")
                 )
         
         # 启动调度器
