@@ -1,2 +1,61 @@
 .env
 config.yaml
+app.log
+botChatLog.json
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 虚拟环境
+venv/
+env/
+ENV/
+.env/
+.venv/
+
+# IDE相关
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# 测试相关
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# 日志文件
+*.log
+logs/
+
+# 数据库文件
+*.db
+*.sqlite3
+*.sqlite
+
+# 临时文件
+*.tmp
+*.bak
+*.swp
+*~

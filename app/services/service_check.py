@@ -35,6 +35,12 @@ class ServiceChecker:
             interval_minutes: 检查间隔时间（分钟）
             json_check: JSON响应检查配置，格式为 {"path": "key1.key2[0].key3", "expected_value": "value"}
         """
+        # 检查是否已存在同名端点
+        for existing_endpoint in self.endpoints:
+            if existing_endpoint["name"] == name:
+                logger.info(f"端点已存在，跳过添加: {name}")
+                return
+                
         endpoint = {
             "name": name,
             "url": url,

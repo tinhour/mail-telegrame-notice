@@ -17,14 +17,18 @@ class NotificationService:
         self.email_config = self.config["email"]
         self.telegram_config = self.config["telegram"]
         self.telegram_bot = None
+        self.telegram_initialized = False
         
         # 如果Telegram启用，初始化机器人
         if self.telegram_config["enabled"] and self.telegram_config["token"]:
             try:
                 self.telegram_bot = telegram.Bot(token=self.telegram_config["token"])
+                self.telegram_initialized = True
                 logger.info("Telegram机器人初始化成功")
             except Exception as e:
                 logger.error(f"Telegram机器人初始化失败: {str(e)}")
+                self.telegram_bot = None
+                self.telegram_initialized = False
     
     def send_notification(self, subject, message, level="info"):
         """
@@ -35,7 +39,8 @@ class NotificationService:
             message: 通知内容
             level: 通知级别 (info, warning, error)
         """
-        success = False
+        email_success = False
+        telegram_success = False
         
         # 根据通知级别设置前缀
         prefix = {
@@ -49,14 +54,18 @@ class NotificationService:
         # 尝试发送邮件
         if self.email_config["enabled"]:
             email_success = self.send_email(full_subject, message)
-            success = success or email_success
+            logger.info(f"邮件通知发送{'成功' if email_success else '失败'}: {subject}")
         
         # 尝试发送Telegram消息
         if self.telegram_config["enabled"]:
             telegram_success = self.send_telegram(full_subject, message)
-            success = success or telegram_success
+            logger.info(f"Telegram通知发送{'成功' if telegram_success else '失败'}: {subject}")
+        
+        # 如果两个渠道都失败，记录错误
+        if not email_success and not telegram_success:
+            logger.error(f"所有通知渠道都失败: {subject}")
             
-        return success
+        return email_success or telegram_success
     
     def send_email(self, subject, message):
         """发送邮件通知"""
@@ -87,7 +96,8 @@ class NotificationService:
     
     def send_telegram(self, subject, message):
         """发送Telegram通知"""
-        if not self.telegram_config["enabled"] or not self.telegram_bot:
+        if not self.telegram_config["enabled"] or not self.telegram_initialized:
+            logger.warning("Telegram通知未启用或机器人未初始化")
             return False
             
         try:
