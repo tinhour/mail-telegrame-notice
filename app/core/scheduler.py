@@ -6,6 +6,7 @@ from apscheduler.executors.pool import ThreadPoolExecutor
 from app.config.settings import CONFIG
 from app.services.service_check import service_checker
 from app.services.system_monitor import system_monitor
+from app.services.db_monitor import db_monitor
 from app.services.notifier import notifier
 
 logger = logging.getLogger(__name__)
@@ -25,6 +26,7 @@ class TaskScheduler:
         )
         self.service_check_interval = CONFIG["service_checks"]["interval_minutes"]
         self.system_monitoring_interval = CONFIG["system_monitoring"]["interval_minutes"]
+        self.db_monitoring_interval = 5  # 数据库监控间隔（分钟）
         self.jobs = []
         self.endpoint_jobs = {}  # 存储端点检查任务 {endpoint_name: job}
     
@@ -38,6 +40,9 @@ class TaskScheduler:
             # 添加系统监控任务
             if CONFIG["system_monitoring"]["enabled"]:
                 self._add_system_monitoring_job()
+                
+            # 添加数据库监控任务
+            self._add_db_monitoring_job()
             
             # 启动调度器
             self.scheduler.start()
@@ -45,12 +50,6 @@ class TaskScheduler:
             
             # 发送启动通知
             self._send_startup_notification()
-    
-    def stop(self):
-        """停止调度器"""
-        if self.scheduler.running:
-            self.scheduler.shutdown()
-            logger.info("任务调度器已停止")
     
     def _add_service_check_jobs(self):
         """添加服务检查任务，为每个端点创建单独的任务"""
@@ -101,6 +100,18 @@ class TaskScheduler:
         self.jobs.append(job)
         logger.info(f"已添加系统资源监控任务，间隔时间: {self.system_monitoring_interval}分钟")
     
+    def _add_db_monitoring_job(self):
+        """添加数据库监控任务"""
+        job = self.scheduler.add_job(
+            db_monitor.check_connection,
+            IntervalTrigger(minutes=self.db_monitoring_interval),
+            id='db_monitoring',
+            name='数据库连接监控',
+            replace_existing=True
+        )
+        self.jobs.append(job)
+        logger.info(f"已添加数据库连接监控任务，间隔时间: {self.db_monitoring_interval}分钟")
+    
     def _send_startup_notification(self):
         """发送启动通知"""
         subject = "监控服务已启动"
@@ -126,12 +137,21 @@ class TaskScheduler:
             message += f"监控间隔: {self.system_monitoring_interval} 分钟\n"
             message += f"CPU阈值: {CONFIG['system_monitoring']['thresholds']['cpu_percent']}%\n"
             message += f"内存阈值: {CONFIG['system_monitoring']['thresholds']['memory_percent']}%\n"
-            message += f"磁盘阈值: {CONFIG['system_monitoring']['thresholds']['disk_percent']}%\n"
+            message += f"磁盘阈值: {CONFIG['system_monitoring']['thresholds']['disk_percent']}%\n\n"
         else:
-            message += "系统资源监控: 已禁用\n"
+            message += "系统资源监控: 已禁用\n\n"
+            
+        message += "数据库连接监控: 已启用\n"
+        message += f"监控间隔: {self.db_monitoring_interval} 分钟\n"
         
         # 发送通知
         notifier.send_notification(subject, message, "info")
+    
+    def stop(self):
+        """停止调度器"""
+        if self.scheduler.running:
+            self.scheduler.shutdown()
+            logger.info("任务调度器已停止")
     
     def add_scheduled_task(self, func, minutes, job_id, job_name):
         """添加自定义定时任务"""
@@ -145,16 +165,6 @@ class TaskScheduler:
         self.jobs.append(job)
         logger.info(f"已添加自定义任务: {job_name}，间隔时间: {minutes}分钟")
         return job
-    
-    def remove_job(self, job_id):
-        """移除指定的任务"""
-        try:
-            self.scheduler.remove_job(job_id)
-            logger.info(f"已移除任务: {job_id}")
-            return True
-        except Exception as e:
-            logger.error(f"移除任务失败: {str(e)}")
-            return False
     
     def update_endpoint_interval(self, endpoint_name, new_interval):
         """
@@ -189,6 +199,39 @@ class TaskScheduler:
         self._add_endpoint_check_job(endpoint)
         logger.info(f"已更新端点检查间隔: {endpoint_name}, 新间隔: {new_interval}分钟")
         return True
+    
+    def update_db_monitoring_interval(self, new_interval):
+        """
+        更新数据库监控间隔时间
+        
+        Args:
+            new_interval: 新的检查间隔时间（分钟）
+            
+        Returns:
+            bool: 是否更新成功
+        """
+        if new_interval <= 0:
+            logger.error(f"无效的检查间隔: {new_interval}")
+            return False
+            
+        self.db_monitoring_interval = new_interval
+        
+        # 更新调度任务
+        self.remove_job('db_monitoring')
+        self._add_db_monitoring_job()
+        
+        logger.info(f"已更新数据库监控间隔时间: {new_interval}分钟")
+        return True
+    
+    def remove_job(self, job_id):
+        """移除指定的任务"""
+        try:
+            self.scheduler.remove_job(job_id)
+            logger.info(f"已移除任务: {job_id}")
+            return True
+        except Exception as e:
+            logger.error(f"移除任务失败: {str(e)}")
+            return False
     
     def list_jobs(self):
         """列出所有任务信息"""
