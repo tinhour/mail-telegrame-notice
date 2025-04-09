@@ -1,0 +1,78 @@
+# 监控系统配置示例文件
+# 复制此文件为 config.yaml 并根据实际情况修改
+
+# 数据库配置
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: your_password
+  dbname: monitoring
+
+# 通知配置
+notifications:
+  # 邮件通知
+  email:
+    enabled: true
+    smtp_server: smtp.example.com
+    smtp_port: 587
+    username: your_email@example.com
+    password: your_email_password
+    sender: your_email@example.com
+    recipients:
+      - admin@example.com
+      - alerts@example.com
+  
+  # Telegram通知
+  telegram:
+    enabled: true
+    token: "your_telegram_bot_token"
+    chat_ids:
+      - 123456789
+      - 987654321
+
+# 服务检查配置
+service_checks:
+  enabled: true
+  interval_minutes: 5
+  endpoints:
+    - name: "示例网站"
+      url: "https://example.com"
+      expected_status: 200
+      expected_content: "Example Domain"
+      headers:
+        User-Agent: "MonitoringBot/1.0"
+    
+    - name: "API服务"
+      url: "https://api.example.com/health"
+      expected_status: 200
+      expected_content: '"status":"ok"'
+      headers:
+        Authorization: "Bearer your_api_token"
+        Content-Type: "application/json"
+        
+    - name: "Ankr RPC API"
+      url: "https://rpc.ankr.com/multichain/498c84e3e1b62890931577d9a7a5eb46b4af57a32bb903ff2b1bb9401d8d77aa"
+      method: "POST"
+      expected_status: 200
+      expected_content: '"result"'
+      headers:
+        Content-Type: "application/json"
+      body: |
+        {
+          "jsonrpc": "2.0",
+          "method": "ankr_getCurrencies",
+          "params": {
+            "blockchain": "eth"
+          },
+          "id": 1
+        }
+
+# 系统资源监控配置
+system_monitoring:
+  enabled: true
+  interval_minutes: 5
+  thresholds:
+    cpu_percent: 80.0
+    memory_percent: 80.0
+    disk_percent: 85.0 

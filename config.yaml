@@ -1,0 +1,72 @@
+# 监控系统配置示例文件
+# 复制此文件为 config.yaml 并根据实际情况修改
+
+# 数据库配置
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  dbname: evm_tracker
+
+# 通知配置
+notifications:
+  # 邮件通知
+  email:
+    enabled: false
+    smtp_server: smtp.example.com
+    smtp_port: 587
+    username: your_email@example.com
+    password: your_email_password
+    sender: your_email@example.com
+    recipients:
+      - admin@example.com
+      - alerts@example.com
+  
+  # Telegram通知
+  telegram:
+    enabled: true
+    token: "7638015275:AAGuzFYTwgiihQ5iIrYXNJA-JE1ZPvGPWr4"
+    chat_ids:
+      - 2006080530
+      - -1002615732272
+
+# 服务检查配置
+service_checks:
+  enabled: true
+  interval_minutes: 5  # 默认检查间隔时间（分钟）
+  endpoints:
+    - name: "系统服务"
+      url: "http://localhost:3001/health"
+      expected_status: 200
+      expected_content: '"status":"ok"'
+      headers:
+        Content-Type: "application/json"
+      interval_minutes: 5  # 每5分钟检查一次
+  
+    - name: "Ankr Token是否能用"
+      url: "https://rpc.ankr.com/multichain/498c84e3e1b62890931577d9a7a5eb46b4af57a32bb903ff2b1bb9401d8d77aa"
+      method: "POST"
+      expected_status: 200
+      expected_content: '"result"'
+      headers:
+        Content-Type: "application/json"
+      interval_minutes: 60  # 每60分钟（1小时）检查一次
+      body: |
+        {
+          "jsonrpc": "2.0",
+          "method": "ankr_getCurrencies",
+          "params": {
+            "blockchain": "eth"
+          },
+          "id": 1
+        }
+
+# 系统资源监控配置
+system_monitoring:
+  enabled: true
+  interval_minutes: 5
+  thresholds:
+    cpu_percent: 80.0
+    memory_percent: 80.0
+    disk_percent: 85.0 
