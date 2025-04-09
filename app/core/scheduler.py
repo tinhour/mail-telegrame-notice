@@ -73,7 +73,12 @@ class TaskScheduler:
             logger.info(f"执行计划检查: {name} (间隔: {interval}分钟)")
             is_ok, details = service_checker.check_endpoint_by_name(name)
             logger.info(f"计划检查完成: {name}, 结果: {'正常' if is_ok else '异常'} - {details}")
-        
+            
+            # 如果检查失败，发送通知
+            if not is_ok:
+                message = f"服务 {name} ({method} {url}) 异常\n详情: {details}"
+                logger.warning(f"服务检查异常: {name}")
+                notifier.send_notification(f"服务异常: {name}", message, "error")
         # 添加任务
         job_id = f"service_check_{name}"
         job = self.scheduler.add_job(

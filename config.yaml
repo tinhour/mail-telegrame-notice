@@ -13,15 +13,15 @@ database:
 notifications:
   # 邮件通知
   email:
-    enabled: false
-    smtp_server: smtp.example.com
-    smtp_port: 587
-    username: your_email@example.com
-    password: your_email_password
-    sender: your_email@example.com
+    enabled: true
+    smtp_server: smtp.qq.com
+    smtp_port: 465
+    username: fangfeng335@qq.com
+    password: xuyomfhnxenlbggj
+    sender: fangfeng335@qq.com
     recipients:
-      - admin@example.com
-      - alerts@example.com
+      - fangfeng335@qq.com
+      - 250969751@qq.com
   
   # Telegram通知
   telegram:

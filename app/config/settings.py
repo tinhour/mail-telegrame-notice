@@ -6,7 +6,13 @@ from dotenv import load_dotenv
 
 # 加载环境变量
 load_dotenv()
-
+# 修复Windows控制台编码问题
+import sys
+if sys.platform == 'win32':
+    import codecs
+    # 强制使用utf-8编码
+    sys.stdout = codecs.getwriter('utf-8')(sys.stdout.buffer, 'strict')
+    sys.stderr = codecs.getwriter('utf-8')(sys.stderr.buffer, 'strict')
 # 配置日志
 logging.basicConfig(
     level=logging.INFO,
@@ -192,6 +198,10 @@ def update_config_with_db_settings(config, db_settings):
     if 'diskThreshold' in db_settings:
         config['system_monitoring']['thresholds']['disk_percent'] = parse_value(db_settings['diskThreshold'])
         logger.info(f"已从数据库设置磁盘阈值: {db_settings['diskThreshold']}%")
+    
+    # 确保通知配置正确
+    logger.info(f"邮件通知配置: 启用={config['notifications']['email']['enabled']}, 服务器={config['notifications']['email']['smtp_server']}, 端口={config['notifications']['email']['smtp_port']}")
+    logger.info(f"Telegram通知配置: 启用={config['notifications']['telegram']['enabled']}, 机器人已初始化={config['notifications']['telegram'].get('bot_initialized', False)}")
     
     logger.info("完成数据库配置加载和应用")
     return config
