@@ -49,7 +49,15 @@ cp config.yaml.example config.yaml
 ### 启动服务
 
 ```bash
+# 2. 激活虚拟环境
+# - macOS/Linux:
+source venv/bin/activate
+# windows
+.\venv\Scripts\Activate.ps1
+#运行程序
 python -m app.main
+#退出环境
+	deactivate
 ```
 
 或者指定配置文件路径：
