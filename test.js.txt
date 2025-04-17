@@ -2,6 +2,7 @@
 async function testSendNotification() {
     // 接口URL
     const url = 'http://localhost:3003/api/notify';
+    //http://38.145.218.208:8080/notify/notify
     
     // 测试数据
     const testData = {
