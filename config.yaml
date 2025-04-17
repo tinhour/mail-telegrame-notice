@@ -36,7 +36,7 @@ service_checks:
   enabled: true
   interval_minutes: 5  # 默认检查间隔时间（分钟）
   endpoints:
-    - name: "系统服务能否访问"
+    - name: "EVM_tracker后台服务"
       url: "http://localhost:3001/health"
       expected_status: 200
       expected_content: '"status":"ok"'

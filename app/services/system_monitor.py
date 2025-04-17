@@ -159,37 +159,29 @@ class SystemMonitor:
         logger.warning(f"{resource_type}使用率超标: {current_value:.1f}% (阈值: {threshold:.1f}%)")
     
     def get_system_status(self):
-        """获取完整的系统状态报告"""
-        sys_info = self.get_system_info()
-        cpu_info = self.get_cpu_usage()
-        memory_info = self.get_memory_usage()
-        disk_info = self.get_disk_usage()
-        
-        status = []
-        
-        # 系统信息
-        status.append(f"主机名: {sys_info['hostname']}")
-        status.append(f"系统: {sys_info['os']}")
-        status.append("")
-        
-        # CPU信息
-        status.append(f"CPU使用率: {cpu_info['percent']:.1f}% (阈值: {self.thresholds['cpu_percent']:.1f}%)")
-        status.append(f"CPU核心数: {cpu_info['count']}")
-        status.append("")
-        
-        # 内存信息
-        status.append(f"内存使用率: {memory_info['percent']:.1f}% (阈值: {self.thresholds['memory_percent']:.1f}%)")
-        status.append(f"总内存: {self.format_bytes(memory_info['total'])}")
-        status.append(f"可用内存: {self.format_bytes(memory_info['available'])}")
-        status.append("")
-        
-        # 磁盘信息
-        status.append("磁盘使用情况:")
-        for partition in disk_info:
-            status.append(f"  {partition['mountpoint']} ({partition['device']}): {partition['percent']:.1f}% 已用 "
-                          f"({self.format_bytes(partition['used'])}/{self.format_bytes(partition['total'])})")
-        
-        return "\n".join(status)
+        """获取系统资源状态摘要"""
+        try:
+            cpu_percent = psutil.cpu_percent(interval=0.5)
+            memory = psutil.virtual_memory()
+            disk = psutil.disk_usage('/')
+            
+            status = {
+                "cpu_percent": f"{cpu_percent:.1f}%",
+                "memory_percent": f"{memory.percent:.1f}%",
+                "memory_used": f"{memory.used / (1024 * 1024 * 1024):.2f} GB",
+                "memory_total": f"{memory.total / (1024 * 1024 * 1024):.2f} GB",
+                "disk_percent": f"{disk.percent:.1f}%",
+                "disk_used": f"{disk.used / (1024 * 1024 * 1024):.2f} GB",
+                "disk_total": f"{disk.total / (1024 * 1024 * 1024):.2f} GB",
+                "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
+            return status
+        except Exception as e:
+            logger.error(f"获取系统状态失败: {str(e)}")
+            return {
+                "error": f"获取系统状态失败: {str(e)}",
+                "last_update": datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            }
 
 
 # 创建系统监控实例

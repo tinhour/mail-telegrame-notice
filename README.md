@@ -70,10 +70,10 @@ python -m app.main --config=/path/to/config.yaml
 
 启动服务后，可以访问以下API端点：
 
-- 健康检查：`http://localhost:5000/health`
-- 系统状态：`http://localhost:5000/api/status`
-- 管理端点：`http://localhost:5000/api/endpoints`
-- 发送通知：`http://localhost:5000/api/notify`
+- 健康检查：`http://localhost:3003/health`
+- 系统状态：`http://localhost:3003/api/status`
+- 管理端点：`http://localhost:3003/api/endpoints`
+- 发送通知：`http://localhost:3003/api/notify`
 
 ### 添加服务监控端点
 

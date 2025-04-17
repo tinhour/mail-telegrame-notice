@@ -38,22 +38,41 @@ def health_check():
 @app.route('/api/status', methods=['GET'])
 def status():
     """获取系统状态信息"""
-    # 获取服务检查状态
-    service_status = service_checker.get_status_summary()
-    
-    # 获取系统资源状态
-    system_status = system_monitor.get_system_status()
-    
-    # 获取调度器任务
-    scheduler_jobs = task_scheduler.list_jobs()
-    
-    return jsonify({
-        "status": "运行中",
-        "version": "0.1.0",
-        "services": service_status,
-        "system": system_status,
-        "scheduled_jobs": scheduler_jobs
-    })
+    try:
+        # 获取服务检查状态
+        service_status = service_checker.get_status_summary()
+        
+        # 获取系统资源状态
+        try:
+            system_status = system_monitor.get_system_status()
+        except Exception as e:
+            logger.error(f"获取系统状态失败: {str(e)}")
+            system_status = {"error": "获取系统状态失败"}
+        
+        # 获取调度器任务
+        try:
+            scheduler_jobs = task_scheduler.list_jobs()
+        except Exception as e:
+            logger.error(f"获取调度任务列表失败: {str(e)}")
+            scheduler_jobs = []
+        
+        # 确保返回的数据可以被JSON序列化
+        return jsonify({
+            "status": "运行中",
+            "version": "0.1.0",
+            "services": service_status,
+            "system": system_status,
+            "scheduled_jobs": scheduler_jobs
+        })
+    except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        logger.error(f"状态API出错: {str(e)}\n{error_trace}")
+        return jsonify({
+            "status": "错误",
+            "error": f"获取状态信息失败: {str(e)}",
+            "version": "0.1.0"
+        }), 500
 
 @app.route('/api/endpoints', methods=['GET', 'POST'])
 def manage_endpoints():

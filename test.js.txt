@@ -1,0 +1,40 @@
+// 测试发送通知的函数
+async function testSendNotification() {
+    // 接口URL
+    const url = 'http://localhost:3003/api/notify';
+    
+    // 测试数据
+    const testData = {
+        subject: "TEST通知",
+        message: "这是来自JS测试的通知内容",
+        level: "info"
+    };
+    
+    try {
+        const response = await fetch(url, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(testData)
+        });
+        
+        const result = await response.json();
+        
+        if (response.ok) {
+            console.log('测试成功:', result);
+        } else {
+            console.error('测试失败:', result);
+        }
+        
+        return result;
+    } catch (error) {
+        console.error('测试过程中发生错误:', error);
+        throw error;
+    }
+}
+
+// 执行测试
+testSendNotification()
+    .then(data => console.log('测试完成:', data))
+    .catch(error => console.error('测试出错:', error));
