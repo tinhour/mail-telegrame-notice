@@ -86,6 +86,12 @@ class TaskScheduler:
         """为单个端点添加检查任务"""
         name = endpoint["name"]
         interval = service_checker.get_endpoint_interval(endpoint)
+
+        # 创建通知状态字典，用于跟踪该端点的通知状态
+        notification_status = {
+            "last_status": None,  # 上次通知时的状态
+            "notified": False     # 是否已经发送过通知
+        }
         
         # 创建检查函数，只检查指定的端点
         def check_single_endpoint():
@@ -95,9 +101,79 @@ class TaskScheduler:
             
             # 如果检查失败，发送通知
             if not is_ok:
-                message = f"服务 {name} ({method} {url}) 异常\n详情: {details}"
-                logger.warning(f"服务检查异常: {name}")
-                notifier.send_notification(f"服务异常: {name}", message, "error")
+                # 决定是否需要发送通知
+                should_notify = False
+                
+                # 初始状态判断
+                if notification_status["last_status"] is None:
+                    # 首次检查：如果异常则发送通知
+                    should_notify = not is_ok
+                    notification_status["last_status"] = is_ok
+                elif notification_status["last_status"] != is_ok:
+                    # 状态变化：始终发送通知
+                    should_notify = True
+                    notification_status["last_status"] = is_ok
+                    # 重置通知标志
+                    notification_status["notified"] = False
+                elif not is_ok and not notification_status["notified"]:
+                    # 异常状态下且尚未发送通知
+                    should_notify = True
+                
+                # 如果需要发送通知
+                if should_notify:
+                    # 从端点中获取方法和URL信息
+                    endpoint_info = None
+                    for ep in service_checker.endpoints:
+                        if ep["name"] == name:
+                            endpoint_info = ep
+                            break
+                    
+                    # 构建通知消息
+                    if endpoint_info:
+                        method = endpoint_info.get("method", "GET")
+                        url = endpoint_info.get("url", "未知URL")
+                        if notification_status["last_status"] == is_ok and not is_ok:
+                            # 持续异常状态
+                            message = f"服务 {name} ({method} {url}) 异常\n详情: {details}"
+                            subject = f"服务异常: {name}"
+                        elif is_ok:
+                            # 恢复正常
+                            message = f"服务 {name} ({method} {url}) 已恢复正常\n详情: {details}"
+                            subject = f"服务已恢复: {name}"
+                        else:
+                            # 变为异常
+                            message = f"服务 {name} ({method} {url}) 变为异常\n详情: {details}"
+                            subject = f"服务异常: {name}"
+                    else:
+                        if notification_status["last_status"] == is_ok and not is_ok:
+                            # 持续异常状态
+                            message = f"服务 {name} 异常\n详情: {details}"
+                            subject = f"服务异常: {name}"
+                        elif is_ok:
+                            # 恢复正常
+                            message = f"服务 {name} 已恢复正常\n详情: {details}"
+                            subject = f"服务已恢复: {name}"
+                        else:
+                            # 变为异常
+                            message = f"服务 {name} 变为异常\n详情: {details}"
+                            subject = f"服务异常: {name}"
+                    
+                    # 设置通知级别
+                    level = "info" if is_ok else "error"
+                    
+                    # 记录日志
+                    if not is_ok:
+                        logger.warning(f"服务检查异常: {name}")
+                    else:
+                        logger.info(f"服务已恢复正常: {name}")
+                    
+                    # 发送通知
+                    success = notifier.send_notification(subject, message, level)
+                    
+                    if success:
+                        # 更新通知状态
+                        notification_status["notified"] = True
+                        logger.info(f"已发送{subject}")
         # 添加任务
         job_id = f"service_check_{name}"
         job = self.scheduler.add_job(

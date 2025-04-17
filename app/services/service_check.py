@@ -218,8 +218,20 @@ class ServiceChecker:
             logger.info(f"检查服务: {name} ({method} {url})")
             is_ok, details = self.check_service(endpoint)
             
+            # 记录详细日志
+            logger.info(f"服务 {name} 原始检查结果: is_ok={is_ok}, details={details}")
+            
             # 获取该服务的历史状态
             previous_status = self.status_history.get(name, {}).get("is_ok")
+            # 记录历史状态
+            logger.info(f"服务 {name} 历史状态: previous_status={previous_status}")
+            
+            # 更新状态历史之前，先保存当前历史状态用于判断
+            status_changed = False
+            if previous_status is not None and previous_status != is_ok:
+                status_changed = True
+                change_type = "恢复正常" if is_ok else "变为异常"
+                logger.info(f"检测到服务 {name} 状态变化: {change_type}")
             
             # 更新状态历史
             self.status_history[name] = {
@@ -229,15 +241,30 @@ class ServiceChecker:
             }
             
             # 服务状态变化或服务出错时发送通知
-            if previous_status is not None and previous_status != is_ok:
-                status_change = "恢复正常" if is_ok else "变为异常"
-                message = f"服务 {name} ({method} {url}) {status_change}\n详情: {details}"
-                level = "info" if is_ok else "error"
-                notifier.send_notification(f"服务状态变化: {name}", message, level)
+            if status_changed:
+                if is_ok:
+                    # 服务从异常恢复为正常
+                    status_change = "恢复正常"
+                    message = f"✅ 服务 {name} ({method} {url}) {status_change}\n详情: {details}"
+                    level = "warning"  # 使用warning级别确保通知明显
+                else:
+                    # 服务从正常变为异常
+                    status_change = "变为异常"
+                    message = f"❌ 服务 {name} ({method} {url}) {status_change}\n详情: {details}"
+                    level = "error"
+                
+                logger.info(f"准备发送服务状态变化通知: 服务={name}, 变化={status_change}, 级别={level}")
+                # 尝试发送通知，并记录结果
+                notification_sent = notifier.send_notification(f"服务状态变化: {name}", message, level)
+                logger.info(f"服务状态变化通知发送结果: {'成功' if notification_sent else '失败'}")
+                
             elif previous_status is None and not is_ok:
                 # 首次检查就发现服务异常时发送通知
-                message = f"服务 {name} ({method} {url}) 异常\n详情: {details}"
-                notifier.send_notification(f"服务异常: {name}", message, "error")
+                message = f"❌ 服务 {name} ({method} {url}) 异常\n详情: {details}"
+                logger.info(f"准备发送首次服务异常通知: 服务={name}")
+                # 尝试发送通知，并记录结果
+                notification_sent = notifier.send_notification(f"服务异常: {name}", message, "error")
+                logger.info(f"首次服务异常通知发送结果: {'成功' if notification_sent else '失败'}")
             
             logger.info(f"服务 {name} 检查结果: {'正常' if is_ok else '异常'} - {details}")
         
@@ -255,7 +282,31 @@ class ServiceChecker:
             summary.append(f"{name}: {state} (上次检查: {last_check})")
         
         return "\n".join(summary)
-
+        
+    def send_test_notification(self):
+        """发送测试通知，用于验证通知功能是否正常工作"""
+        logger.info("发送测试通知...")
+        
+        # 发送测试邮件通知
+        email_message = "这是一条测试邮件通知，用于验证邮件通知功能是否正常工作。"
+        email_result = notifier.send_email("服务监控测试邮件", email_message)
+        logger.info(f"测试邮件发送结果: {'成功' if email_result else '失败'}")
+        
+        # 发送测试Telegram通知
+        telegram_message = "这是一条测试Telegram通知，用于验证Telegram通知功能是否正常工作。"
+        telegram_result = notifier.send_telegram("服务监控测试Telegram", telegram_message)
+        logger.info(f"测试Telegram发送结果: {'成功' if telegram_result else '失败'}")
+        
+        # 使用通知服务发送综合测试
+        test_message = "这是一条综合测试通知，同时测试邮件和Telegram通知功能。\n\n如果您收到此消息，表示通知系统工作正常。"
+        notification_result = notifier.send_notification("服务监控系统测试", test_message, "warning")
+        logger.info(f"综合测试通知发送结果: {'成功' if notification_result else '失败'}")
+        
+        return {
+            "email": email_result,
+            "telegram": telegram_result,
+            "notification": notification_result
+        }
 
 # 创建服务检查实例
 service_checker = ServiceChecker() 

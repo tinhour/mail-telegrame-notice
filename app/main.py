@@ -189,7 +189,7 @@ def parse_args():
     """解析命令行参数"""
     parser = argparse.ArgumentParser(description='消息通知和服务监控系统')
     parser.add_argument('--host', default='0.0.0.0', help='监听主机地址')
-    parser.add_argument('--port', type=int, default=5000, help='监听端口')
+    parser.add_argument('--port', type=int, default=3003, help='监听端口')
     parser.add_argument('--debug', action='store_true', help='开启调试模式')
     parser.add_argument('--config', help='配置文件路径')
     
