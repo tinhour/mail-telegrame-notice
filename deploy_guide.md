@@ -126,4 +126,56 @@ DEPLOY_SERVER_PASSWORD=你的密码   # 登录密码
    - 确保配置文件正确
    - 确保所有依赖项已正确安装
 
+现在已经配置了自动重启，每天4点自动重启，为了加载数据库修改过的配置
+```bash
+echo "0 4 * * * root systemctl restart evm-tracker-notify" | sudo tee -a /etc/crontab
+```
+要删除自动启动的话：
+sudo nano /etc/crontab
+方法1：手动编辑crontab文件
+找到并删除这一行：
+0 4 * * * root systemctl restart evm-tracker-notify
+保存并退出（按Ctrl+o ,Ctrl+X，然后按Y确认，再按Enter）。
+方法2：使用sed命令自动删除
+```bash
+sudo sed -i '/systemctl restart evm-tracker-notify/d' /etc/crontab
+```
+此命令会自动查找并删除包含systemctl restart evm-tracker-notify字符串的行。
+执行完后，可以通过以下命令确认该行已被删除：
+```bash
+cat /etc/crontab
+```
+-------------------
+重启服务的相磁命令
+```bash
+   systemctl daemon-reload
+   systemctl restart evm-tracker-notify
+   systemctl status evm-tracker-notify
+   journalctl -u evm-tracker-notify -n 50
+   #python 相关命令
+   cd /opt/deploy/notify
+   source venv/bin/activate
+   pip freeze > requirements.txt
+```
+evm-tracker-notify.service内容
+```bash
+[Unit]
+Description=EVM Tracker Web Service
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/opt/deploy/notify
+# 恢复运行完整应用
+ExecStart=/opt/deploy/notify/venv/bin/python -m app.main
+Restart=always
+RestartSec=10
+Environment=PYTHONUNBUFFERED=1
+Environment=PYTHONPATH=/opt/deploy/notify
+
+[Install]
+WantedBy=multi-user.target
+
+```
 如需更多帮助，请联系系统管理员或开发团队。 

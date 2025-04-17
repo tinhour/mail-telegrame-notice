@@ -69,7 +69,7 @@ class TaskScheduler:
             logger.info("任务调度器已启动")
             
             # 发送启动通知
-            self._send_startup_notification(db_monitoring_enabled and DB_MONITOR_AVAILABLE)
+            #self._send_startup_notification(db_monitoring_enabled and DB_MONITOR_AVAILABLE)
     
     def _add_service_check_jobs(self):
         """添加服务检查任务，为每个端点创建单独的任务"""
