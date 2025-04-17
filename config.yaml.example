@@ -6,62 +6,59 @@ database:
   host: localhost
   port: 5432
   user: postgres
-  password: your_password
-  dbname: monitoring
+  password: yourpassword
+  dbname: yourdbname
 
 # 通知配置
 notifications:
   # 邮件通知
   email:
     enabled: true
-    smtp_server: smtp.example.com
-    smtp_port: 587
-    username: your_email@example.com
-    password: your_email_password
-    sender: your_email@example.com
+    smtp_server: smtp.qq.com
+    smtp_port: 465
+    username: youremail@example.com
+    password: yourpassword
+    sender: thesendmail@example.com
     recipients:
-      - admin@example.com
-      - alerts@example.com
+      - recevie1@example.com
+      - recevie2@example.com
   
   # Telegram通知
   telegram:
     enabled: true
     token: "your_telegram_bot_token"
     chat_ids:
-      - 123456789
-      - 987654321
+      - chat_ids
+      - channel_id
 
 # 服务检查配置
 service_checks:
   enabled: true
-  interval_minutes: 5
+  interval_minutes: 5  # 默认检查间隔时间（分钟）
   endpoints:
-    - name: "示例网站"
-      url: "https://example.com"
-      expected_status: 200
-      expected_content: "Example Domain"
-      headers:
-        User-Agent: "MonitoringBot/1.0"
-    
-    - name: "API服务"
-      url: "https://api.example.com/health"
+    - name: "EVM_tracker后台服务"
+      url: "http://localhost:3001/health"
       expected_status: 200
       expected_content: '"status":"ok"'
       headers:
-        Authorization: "Bearer your_api_token"
         Content-Type: "application/json"
-        
-    - name: "Ankr RPC API"
-      url: "https://rpc.ankr.com/multichain/your_api_token"
+      interval_minutes: 5  # 每5分钟检查一次
+  
+    - name: "Ankr Token是否能用"
+      url: "https://rpc.ankr.com/multichain/api-token"
       method: "POST"
       expected_status: 200
-      expected_content: '"result"'
+      expected_content: '"blockchain":"eth"'  # 简单字符串匹配作为备用检查
       headers:
         Content-Type: "application/json"
+      interval_minutes: 60  # 每60分钟（1小时）检查一次
+      json_check:
+        path: "result.stats[0].blockchain"
+        expected_value: "eth"
       body: |
         {
           "jsonrpc": "2.0",
-          "method": "ankr_getCurrencies",
+          "method": "ankr_getBlockchainStats",
           "params": {
             "blockchain": "eth"
           },
