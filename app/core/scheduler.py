@@ -3,11 +3,22 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.executors.pool import ThreadPoolExecutor
 
-from app.config.settings import CONFIG
+from app.config.settings import CONFIG, DB_AVAILABLE
 from app.services.service_check import service_checker
 from app.services.system_monitor import system_monitor
-from app.services.db_monitor import db_monitor
 from app.services.notifier import notifier
+
+# 有条件地导入数据库监控模块
+if DB_AVAILABLE:
+    try:
+        from app.services.db_monitor import db_monitor
+        DB_MONITOR_AVAILABLE = True
+    except ImportError:
+        DB_MONITOR_AVAILABLE = False
+        logging.warning("无法导入数据库监控模块")
+else:
+    DB_MONITOR_AVAILABLE = False
+    logging.warning("数据库模块不可用，跳过导入数据库监控模块")
 
 logger = logging.getLogger(__name__)
 
@@ -30,8 +41,13 @@ class TaskScheduler:
         self.jobs = []
         self.endpoint_jobs = {}  # 存储端点检查任务 {endpoint_name: job}
     
-    def start(self):
-        """启动调度器"""
+    def start(self, db_monitoring_enabled=True):
+        """
+        启动调度器
+        
+        Args:
+            db_monitoring_enabled: 是否启用数据库监控，默认为True
+        """
         if not self.scheduler.running:
             # 添加服务检查任务
             if CONFIG["service_checks"]["enabled"]:
@@ -41,15 +57,18 @@ class TaskScheduler:
             if CONFIG["system_monitoring"]["enabled"]:
                 self._add_system_monitoring_job()
                 
-            # 添加数据库监控任务
-            self._add_db_monitoring_job()
+            # 添加数据库监控任务（如果启用）
+            if db_monitoring_enabled and DB_MONITOR_AVAILABLE:
+                self._add_db_monitoring_job()
+            else:
+                logger.info("数据库监控已禁用")
             
             # 启动调度器
             self.scheduler.start()
             logger.info("任务调度器已启动")
             
             # 发送启动通知
-            self._send_startup_notification()
+            self._send_startup_notification(db_monitoring_enabled and DB_MONITOR_AVAILABLE)
     
     def _add_service_check_jobs(self):
         """添加服务检查任务，为每个端点创建单独的任务"""
@@ -107,6 +126,10 @@ class TaskScheduler:
     
     def _add_db_monitoring_job(self):
         """添加数据库监控任务"""
+        if not DB_MONITOR_AVAILABLE:
+            logger.warning("数据库监控模块不可用，无法添加数据库监控任务")
+            return
+            
         job = self.scheduler.add_job(
             db_monitor.check_connection,
             IntervalTrigger(minutes=self.db_monitoring_interval),
@@ -117,7 +140,7 @@ class TaskScheduler:
         self.jobs.append(job)
         logger.info(f"已添加数据库连接监控任务，间隔时间: {self.db_monitoring_interval}分钟")
     
-    def _send_startup_notification(self):
+    def _send_startup_notification(self, db_monitoring_enabled=True):
         """发送启动通知"""
         subject = "监控服务已启动"
         message = "监控和通知服务已成功启动，开始执行定时监控任务。\n\n"
@@ -146,8 +169,11 @@ class TaskScheduler:
         else:
             message += "系统资源监控: 已禁用\n\n"
             
-        message += "数据库连接监控: 已启用\n"
-        message += f"监控间隔: {self.db_monitoring_interval} 分钟\n"
+        if db_monitoring_enabled and DB_MONITOR_AVAILABLE:
+            message += "数据库连接监控: 已启用\n"
+            message += f"监控间隔: {self.db_monitoring_interval} 分钟\n"
+        else:
+            message += "数据库连接监控: 已禁用\n"
         
         # 发送通知
         notifier.send_notification(subject, message, "info")
@@ -215,6 +241,10 @@ class TaskScheduler:
         Returns:
             bool: 是否更新成功
         """
+        if not DB_MONITOR_AVAILABLE:
+            logger.warning("数据库监控模块不可用，无法更新监控间隔")
+            return False
+            
         if new_interval <= 0:
             logger.error(f"无效的检查间隔: {new_interval}")
             return False

@@ -1,7 +1,6 @@
 import os
 import yaml
 import logging
-import psycopg2
 from dotenv import load_dotenv
 
 # 加载环境变量
@@ -27,8 +26,20 @@ logger = logging.getLogger(__name__)
 # 配置文件路径
 CONFIG_FILE = os.getenv("CONFIG_FILE", "config.yaml")
 
+# 尝试导入psycopg2
+try:
+    import psycopg2
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+    logger.warning("无法导入psycopg2模块，数据库功能将被禁用")
+
 def get_db_connection():
     """获取数据库连接"""
+    if not DB_AVAILABLE:
+        logger.warning("psycopg2模块不可用，无法连接数据库")
+        return None
+        
     try:
         conn = psycopg2.connect(
             host=os.getenv("DB_HOST", "localhost"),
@@ -44,6 +55,10 @@ def get_db_connection():
 
 def load_db_settings():
     """从数据库加载配置项"""
+    if not DB_AVAILABLE:
+        logger.warning("psycopg2模块不可用，无法从数据库加载配置")
+        return {}
+        
     settings = {}
     conn = get_db_connection()
     if not conn:
@@ -206,8 +221,13 @@ def update_config_with_db_settings(config, db_settings):
     logger.info("完成数据库配置加载和应用")
     return config
 
-def load_config():
-    """加载配置文件"""
+def load_config(skip_db_settings=False):
+    """
+    加载配置文件
+    
+    Args:
+        skip_db_settings: 是否跳过从数据库加载配置，默认为False
+    """
     try:
         # 首先加载默认配置或文件配置
         default_config = {
@@ -262,9 +282,12 @@ def load_config():
         else:
             logger.warning(f"配置文件 {CONFIG_FILE} 不存在，使用默认配置")
         
-        # 从数据库加载配置并覆盖现有配置
-        db_settings = load_db_settings()
-        config = update_config_with_db_settings(config, db_settings)
+        # 从数据库加载配置并覆盖现有配置（如果不跳过数据库配置加载）
+        if not skip_db_settings:
+            db_settings = load_db_settings()
+            config = update_config_with_db_settings(config, db_settings)
+        else:
+            logger.info("已跳过从数据库加载配置")
         
         return config
     except Exception as e:

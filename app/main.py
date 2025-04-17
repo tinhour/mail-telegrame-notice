@@ -6,11 +6,19 @@ import sys
 import logging
 import argparse
 import time
+import importlib
 from flask import Flask, jsonify, request
 
 # 导入配置和核心模块
-from app.config.settings import CONFIG
-from app.core.db import init_db
+from app.config.settings import CONFIG, load_config
+# 有条件地导入数据库模块
+try:
+    from app.core.db import init_db
+    DB_AVAILABLE = True
+except ImportError:
+    DB_AVAILABLE = False
+    logging.warning("数据库模块不可用，将只从配置文件读取配置")
+
 from app.core.scheduler import task_scheduler
 from app.services.notifier import notifier
 from app.services.service_check import service_checker
@@ -131,9 +139,27 @@ def send_notification():
 def setup_services():
     """初始化所有服务"""
     try:
-        # 初始化数据库
-        init_db()
-        logger.info("数据库初始化完成")
+        global CONFIG
+        # 初始化数据库（如果可用）
+        db_monitoring_enabled = False
+        if DB_AVAILABLE:
+            try:
+                init_db()
+                logger.info("数据库初始化完成")
+                db_monitoring_enabled = True
+            except Exception as e:
+                logger.error(f"数据库初始化失败: {str(e)}")
+                logger.warning("将使用配置文件代替数据库")
+                # 重新加载配置（跳过数据库）
+                CONFIG = load_config(skip_db_settings=True)
+        else:
+            logger.info("数据库模块不可用，跳过数据库初始化")
+            # 确保从环境变量和配置文件重新加载配置（跳过数据库）
+            try:
+                CONFIG = load_config(skip_db_settings=True)
+                logger.info("从环境变量和配置文件加载配置完成")
+            except Exception as e:
+                logger.error(f"从配置文件加载配置失败: {str(e)}")
         
         # 加载服务端点配置
         if "endpoints" in CONFIG["service_checks"]:
@@ -151,7 +177,7 @@ def setup_services():
                 )
         
         # 启动调度器
-        task_scheduler.start()
+        task_scheduler.start(db_monitoring_enabled=db_monitoring_enabled)
         
         logger.info("所有服务初始化完成")
         return True
