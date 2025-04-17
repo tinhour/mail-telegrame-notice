@@ -443,8 +443,8 @@ evm-tracker-notice/
 
 如有任何问题或建议，请通过以下方式联系:
 
-- 项目维护者: [维护者姓名](mailto:维护者邮箱)
-- 项目仓库: [GitHub仓库地址](项目GitHub地址)
+- 项目维护者: [tinhour](mailto:fangfeng335@qq.com)
+- 项目仓库: [https://github.com/tinhour/mail-telegrame-notice](Mail-telegrame-notice)
 
 ---
 
