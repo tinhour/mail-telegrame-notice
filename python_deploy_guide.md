@@ -1,0 +1,80 @@
+# Python部署脚本使用指南
+
+## 前提条件
+
+1. 本地环境已安装Python 3.6+
+2. 生产服务器运行 Debian GNU/Linux 12 (Bookworm)
+3. 确保服务器上的SSH服务已启用，且允许root用户登录
+
+## 部署步骤
+
+### 1. 安装依赖
+
+在使用部署脚本前，需要先安装必要的Python依赖：
+
+```
+pip install -r deploy_requirements.txt
+```
+
+### 2. 配置环境变量
+
+确保您的`.env`文件包含以下配置：
+
+```ini
+# 部署配置
+DEPLOY_ENABLED=true
+DEPLOY_SCRIPT_PATH=/opt/deploy/notify/
+DEPLOY_SERVER_IP=38.145.218.208  # 您的生产服务器IP
+DEPLOY_SERVER_PORT=22            # SSH端口
+DEPLOY_SERVER_USER=root          # 登录用户
+DEPLOY_SERVER_PASSWORD=您的密码   # 登录密码
+```
+
+### 3. 执行部署脚本
+
+直接运行Python脚本：
+
+```
+python deploy.py
+```
+
+脚本将执行以下操作：
+- 读取`.env`文件中的配置信息
+- 创建临时工作目录
+- 将必要的文件复制到临时目录
+- 创建归档文件
+- 通过SSH连接到服务器
+- 上传归档文件
+- 在服务器上执行部署操作
+- 清理临时文件
+
+## 故障排除
+
+### 连接问题
+
+如果遇到SSH连接问题：
+
+1. 确认IP地址和端口是否正确
+2. 确认用户名和密码是否正确
+3. 检查服务器防火墙设置是否允许SSH连接
+
+### 权限问题
+
+如果遇到权限相关错误：
+
+1. 确保使用的是root用户或具有足够权限的用户
+2. 检查服务器上目标目录的权限
+
+### 依赖问题
+
+如果脚本运行时报告缺少模块：
+
+1. 确保已正确安装所有依赖：`pip install -r deploy_requirements.txt`
+2. 如果使用虚拟环境，确保已激活正确的环境
+
+### 服务器问题
+
+如果服务器端部署失败：
+
+1. 确保服务器上有足够的磁盘空间
+2. 查看服务器日志获取更多信息：`journalctl -xeu evm-tracker`
