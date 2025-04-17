@@ -31,7 +31,17 @@ source venv/bin/activate
 
 echo "正在安装Python依赖..."
 pip install --upgrade pip
-pip install -r requirements.txt
+
+# 首先安装主要依赖，如果出现冲突，采用两步安装法
+if ! pip install -r requirements.txt; then
+    echo "检测到依赖冲突，尝试分步安装..."
+    # 先安装python-telegram-bot及其依赖
+    pip install python-telegram-bot==13.14
+    # 然后安装其它依赖，忽略版本冲突
+    pip install -r requirements.txt --no-deps
+    # 安装剩余依赖但跳过已安装的包
+    pip install psycopg2-binary pyyaml schedule requests psutil flask prometheus-client SQLAlchemy python-dotenv
+fi
 
 echo "正在创建服务文件..."
 cat > /etc/systemd/system/evm-tracker.service << 'EOF'
@@ -136,9 +146,25 @@ def prepare_files(temp_dir):
         # 复制.env文件
         shutil.copy('.env', temp_dir)
         
-        # 创建远程部署脚本
-        with open(os.path.join(temp_dir, 'remote_deploy.sh'), 'w', newline='\n') as f:
+        # 创建远程部署脚本，确保使用UTF-8编码
+        remote_script_path = os.path.join(temp_dir, 'remote_deploy.sh')
+        with open(remote_script_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(REMOTE_DEPLOY_SCRIPT)
+        
+        # 确保脚本使用Unix格式的行结束符
+        try:
+            # 读取文件内容
+            with open(remote_script_path, 'r', encoding='utf-8') as f:
+                content = f.read()
+            
+            # 将所有的Windows行结束符（\r\n）替换为Unix行结束符（\n）
+            content = content.replace('\r\n', '\n')
+            
+            # 重新写入文件
+            with open(remote_script_path, 'w', encoding='utf-8', newline='\n') as f:
+                f.write(content)
+        except Exception as e:
+            print_colored(f"警告：转换行结束符失败: {str(e)}", "yellow")
         
     except Exception as e:
         print_colored(f"错误：准备文件失败: {str(e)}", "red")
@@ -157,6 +183,49 @@ def create_archive(temp_dir, archive_name):
     except Exception as e:
         print_colored(f"错误：创建归档文件失败: {str(e)}", "red")
         return False
+
+def run_remote_command(ssh, command):
+    """在远程服务器上执行命令并处理输出"""
+    print(f"执行: {command}")
+    
+    # 执行命令
+    stdin, stdout, stderr = ssh.exec_command(command)
+    
+    # 读取并显示输出
+    output_lines = []
+    try:
+        # 尝试以utf-8读取输出
+        for line in stdout:
+            output_line = line.strip()
+            output_lines.append(output_line)
+            print(output_line)
+    except UnicodeDecodeError:
+        # 如果遇到编码错误，使用替换模式
+        try:
+            output = stdout.read()
+            output_text = output.decode('utf-8', errors='replace')
+            for line in output_text.splitlines():
+                print(line)
+                output_lines.append(line)
+        except Exception as e:
+            print_colored(f"警告：读取输出时出错: {str(e)}", "yellow")
+    
+    # 获取退出状态
+    exit_status = stdout.channel.recv_exit_status()
+    
+    # 如果命令失败，读取错误输出
+    if exit_status != 0:
+        error_output = ""
+        try:
+            error_output = stderr.read().decode('utf-8', errors='replace')
+        except Exception:
+            error_output = "无法解码错误输出"
+        
+        print_colored(f"错误：命令执行失败 (退出码 {exit_status})", "red")
+        print(error_output)
+        return False, output_lines
+    
+    return True, output_lines
 
 def deploy_to_server(server_info, archive_name):
     """部署到服务器"""
@@ -192,30 +261,17 @@ def deploy_to_server(server_info, archive_name):
             f"mkdir -p {server_info['path']}",
             f"tar -xzf {remote_archive_path} -C {server_info['path']}",
             f"chmod +x {server_info['path']}/remote_deploy.sh",
-            f"cd {server_info['path']} && ./remote_deploy.sh"
+            f"cd {server_info['path']} && bash ./remote_deploy.sh"  # 使用bash显式执行脚本
         ]
         
+        # 执行每个命令
         for cmd in commands:
-            print(f"执行: {cmd}")
-            stdin, stdout, stderr = ssh.exec_command(cmd)
-            
-            # 实时输出命令执行结果
-            while True:
-                line = stdout.readline()
-                if not line:
-                    break
-                print(line.strip())
-            
-            # 检查命令是否执行成功
-            exit_status = stdout.channel.recv_exit_status()
-            if exit_status != 0:
-                error_output = stderr.read().decode('utf-8')
-                print_colored(f"错误：命令执行失败 (退出码 {exit_status})", "red")
-                print(error_output)
+            success, _ = run_remote_command(ssh, cmd)
+            if not success:
                 return False
         
         # 清理远程临时文件
-        ssh.exec_command(f"rm {remote_archive_path}")
+        run_remote_command(ssh, f"rm {remote_archive_path}")
         
         print_colored("部署完成！", "green")
         return True
