@@ -2,6 +2,7 @@ from flask import Blueprint, render_template, request, jsonify
 import os
 import json
 from app.utils.config_manager import ConfigManager
+import flask
 
 # 创建蓝图
 config_bp = Blueprint('config', __name__)
@@ -254,10 +255,17 @@ def import_config():
         file = request.files['config_file']
         if file.filename == '':
             return jsonify({"status": "error", "message": "没有选择文件"}), 400
+            
+        # 检查文件扩展名
+        if not (file.filename.endswith('.yaml') or file.filename.endswith('.yml') or file.filename.endswith('.json')):
+            return jsonify({"status": "error", "message": "仅支持YAML和JSON格式文件"}), 400
+        
+        # 确保临时目录存在
+        temp_dir = os.getenv('TEMP_DIR', './temp')
+        os.makedirs(temp_dir, exist_ok=True)
         
         # 保存上传的文件
-        temp_path = os.path.join(os.getenv('TEMP_DIR', './temp'), 'import_config.yaml')
-        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+        temp_path = os.path.join(temp_dir, 'import_config.yaml')
         file.save(temp_path)
         
         # 导入配置
@@ -270,7 +278,7 @@ def import_config():
         if success:
             return jsonify({"status": "success", "message": "配置已导入"}), 200
         else:
-            return jsonify({"status": "error", "message": "导入配置失败"}), 500
+            return jsonify({"status": "error", "message": "导入配置失败，文件格式可能不正确"}), 500
     except Exception as e:
         return jsonify({"status": "error", "message": f"导入配置失败: {str(e)}"}), 500
 
@@ -278,8 +286,11 @@ def import_config():
 def export_config():
     """导出配置"""
     try:
-        temp_path = os.path.join(os.getenv('TEMP_DIR', './temp'), 'export_config.yaml')
-        os.makedirs(os.path.dirname(temp_path), exist_ok=True)
+        # 确保临时目录存在
+        temp_dir = os.getenv('TEMP_DIR', './temp')
+        os.makedirs(temp_dir, exist_ok=True)
+        
+        temp_path = os.path.join(temp_dir, 'export_config.yaml')
         
         success = config_manager.export_config_to_yaml(temp_path)
         
@@ -303,9 +314,10 @@ def download_config():
         with open(temp_path, 'r', encoding='utf-8') as f:
             config_content = f.read()
         
-        # 返回配置文件内容
-        response = jsonify({"config": config_content})
+        # 创建直接下载的响应
+        response = flask.make_response(config_content)
         response.headers["Content-Disposition"] = "attachment; filename=config.yaml"
+        response.headers["Content-Type"] = "application/x-yaml"
         return response
     except Exception as e:
         return jsonify({"status": "error", "message": f"下载配置失败: {str(e)}"}), 500

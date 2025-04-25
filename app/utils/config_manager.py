@@ -285,7 +285,7 @@ class ConfigManager:
         更新端点
         
         Args:
-            endpoint_name: 端点名称
+            endpoint_name: 端点名称或ID
             endpoint: 端点配置
             
         Returns:
@@ -298,9 +298,10 @@ class ConfigManager:
         if 'id' not in endpoint or endpoint['id'] is None:
             endpoint['id'] = endpoint.get('name')
         
-        # 查找并更新端点
+        # 查找并更新端点（同时支持通过名称和ID查找）
         for i, existing in enumerate(endpoints):
-            if existing.get('name') == endpoint_name:
+            if (existing.get('name') == endpoint_name or 
+                existing.get('id') == endpoint_name):
                 endpoints[i] = endpoint
                 return self.save_endpoints({"endpoints": endpoints})
         
@@ -425,8 +426,12 @@ class ConfigManager:
             bool: 导出是否成功
         """
         try:
+            # 确保目录存在
+            os.makedirs(os.path.dirname(yaml_file), exist_ok=True)
+            
             with open(yaml_file, 'w', encoding='utf-8') as f:
                 yaml.dump(self.config, f, default_flow_style=False, allow_unicode=True)
+            self.logger.info(f"配置已成功导出到YAML: {yaml_file}")
             return True
         except Exception as e:
             self.logger.error(f"导出配置到YAML时出错: {e}")

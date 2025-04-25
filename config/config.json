@@ -56,10 +56,10 @@
             },
             {
                 "id": "test",
-                "name": "test2",
-                "url": "http://127.0.0.1:3003/config/#endpointSettings",
+                "name": "evm-tracker正式上线服务",
+                "url": "https://evm-tracker.dbnice.xyz/",
                 "method": "GET",
-                "interval_minutes": 10,
+                "interval_minutes": 60,
                 "enabled": true,
                 "expected_status": 200,
                 "expected_content": null,

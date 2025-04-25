@@ -304,11 +304,29 @@ document.addEventListener('DOMContentLoaded', function() {
                 return;
             }
             
+            // 检查文件扩展名
+            const fileName = fileInput.files[0].name;
+            if (!fileName.endsWith('.yaml') && !fileName.endsWith('.yml') && !fileName.endsWith('.json')) {
+                showAlert('仅支持YAML和JSON格式文件', 'warning');
+                return;
+            }
+            
+            // 显示导入中状态
+            const submitBtn = this.querySelector('button[type="submit"]');
+            const originalBtnText = submitBtn.innerHTML;
+            submitBtn.disabled = true;
+            submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 导入中...';
+            
             fetch('/api/import-config', {
                 method: 'POST',
                 body: formData,
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP错误: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
                 if (data.status === 'success') {
                     // 关闭模态框
@@ -328,6 +346,11 @@ document.addEventListener('DOMContentLoaded', function() {
             .catch(error => {
                 console.error('导入配置错误:', error);
                 showAlert('导入配置时出错: ' + error.message, 'danger');
+            })
+            .finally(() => {
+                // 恢复按钮状态
+                submitBtn.disabled = false;
+                submitBtn.innerHTML = originalBtnText;
             });
         });
     }
@@ -338,7 +361,37 @@ document.addEventListener('DOMContentLoaded', function() {
         exportConfigBtn.addEventListener('click', function(e) {
             e.preventDefault();
             
-            window.location.href = '/api/config/export';
+            // 显示导出中状态
+            const originalText = exportConfigBtn.textContent;
+            exportConfigBtn.disabled = true;
+            exportConfigBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 导出中...';
+            
+            // 使用正确的API端点
+            fetch('/api/export-config')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP错误: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    if (data.status === 'success') {
+                        // 使用下载链接
+                        window.location.href = data.download_url;
+                        showAlert('配置已准备好下载', 'success');
+                    } else {
+                        showAlert('导出配置失败: ' + data.message, 'danger');
+                    }
+                })
+                .catch(error => {
+                    console.error('导出配置错误:', error);
+                    showAlert('导出配置时出错: ' + error.message, 'danger');
+                })
+                .finally(() => {
+                    // 恢复按钮状态
+                    exportConfigBtn.disabled = false;
+                    exportConfigBtn.innerHTML = originalText;
+                });
         });
     }
     
@@ -756,7 +809,7 @@ document.addEventListener('DOMContentLoaded', function() {
         // 添加或更新端点
         if (id) {
             // 更新端点
-            fetch(`/api/endpoints/${id}`, {
+            fetch(`/api/endpoints/${name}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
