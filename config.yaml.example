@@ -1,14 +1,6 @@
 # 监控系统配置示例文件
 # 复制此文件为 config.yaml 并根据实际情况修改
 
-# 数据库配置
-database:
-  host: localhost
-  port: 5432
-  user: postgres
-  password: yourpassword
-  dbname: yourdbname
-
 # 通知配置
 notifications:
   # 邮件通知
@@ -63,13 +55,4 @@ service_checks:
             "blockchain": "eth"
           },
           "id": 1
-        }
-
-# 系统资源监控配置
-system_monitoring:
-  enabled: true
-  interval_minutes: 5
-  thresholds:
-    cpu_percent: 80.0
-    memory_percent: 80.0
-    disk_percent: 85.0 
+        } 

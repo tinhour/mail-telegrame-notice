@@ -38,6 +38,7 @@ ENV/
 *.swp
 *.swo
 .DS_Store
+.cursor
 
 # 测试相关
 .coverage

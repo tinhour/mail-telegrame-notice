@@ -1,6 +1,6 @@
 # 服务监控与通知系统
 
-一个强大的服务状态监控和通知系统，可以实时监控API服务的健康状态，检测系统资源使用情况，并通过多种渠道发送通知。
+一个强大的服务状态监控和通知系统，可以实时监控API服务的健康状态，并通过多种渠道发送通知。
 
 ## 🔍 功能特点
 
@@ -15,12 +15,6 @@
   - 自定义检查间隔：每个服务可设置不同的检查频率
   - 智能通知策略：状态变化和持续异常时发送通知
 
-- **系统资源监控**
-  - CPU使用率监控
-  - 内存使用情况监控
-  - 磁盘空间监控
-  - 可自定义阈值设置
-
 - **易用的Web API**
   - RESTful接口设计
   - 服务状态查询
@@ -30,20 +24,18 @@
 - **灵活配置**
   - YAML配置文件支持
   - 环境变量配置支持
-  - 数据库存储配置（可选）
 
 ## 🛠️ 安装指南
 
 ### 系统要求
 
 - Python 3.6+
-- 可选：PostgreSQL数据库（用于存储配置）
 
 ### 步骤一：克隆代码库
 
 ```bash
-git clone <repository-url>
-cd evm-tracker-notice
+git clone <https://github.com/tinhour/mail-telegrame-notice.git>
+cd mail-telegrame-notice
 ```
 
 ### 步骤二：创建虚拟环境并安装依赖
@@ -301,11 +293,11 @@ python -m app.main --debug
   }
   ```
 
-#### 6. 发送测试通知
+#### 6. 发送通知
 
 - **URL**: `/api/notify`
 - **方法**: `POST`
-- **描述**: 手动发送测试通知
+- **描述**: 手动发送通知
 - **请求体示例**:
   ```json
   {
@@ -346,13 +338,13 @@ CMD ["python", "-m", "app.main"]
 2. 构建和运行容器:
 
 ```bash
-docker build -t service-monitor .
-docker run -p 3003:3003 -v $(pwd)/config.yaml:/app/config.yaml service-monitor
+docker build -t mail-telegrame-notice .
+docker run -p 3003:3003 -v $(pwd)/config.yaml:/app/config.yaml mail-telegrame-notice
 ```
 
 ### 系统服务部署 (Linux)
 
-1. 创建systemd服务文件 `/etc/systemd/system/service-monitor.service`:
+1. 创建systemd服务文件 `/etc/systemd/system/mail-telegrame-notice.service`:
 
 ```ini
 [Unit]
@@ -361,8 +353,8 @@ After=network.target
 
 [Service]
 User=yourusername
-WorkingDirectory=/path/to/evm-tracker-notice
-ExecStart=/path/to/evm-tracker-notice/venv/bin/python -m app.main
+WorkingDirectory=/path/to/mail-telegrame-notice
+ExecStart=/path/to/mail-telegrame-notice/venv/bin/python -m app.main
 Restart=always
 RestartSec=10
 
@@ -374,14 +366,14 @@ WantedBy=multi-user.target
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable service-monitor
-sudo systemctl start service-monitor
+sudo systemctl enable mail-telegrame-notice
+sudo systemctl start mail-telegrame-notice
 ```
 
 3. 查看服务状态:
 
 ```bash
-sudo systemctl status service-monitor
+sudo systemctl status mail-telegrame-notice
 ```
 
 ### 日志管理
@@ -391,7 +383,7 @@ sudo systemctl status service-monitor
 示例logrotate配置:
 
 ```
-/path/to/evm-tracker-notice/app.log {
+/path/to/mail-telegrame-notice/app.log {
     daily
     missingok
     rotate 14
@@ -405,12 +397,11 @@ sudo systemctl status service-monitor
 ## 📁 项目结构
 
 ```
-evm-tracker-notice/
+mail-telegrame-notice/
 ├── app/
 │   ├── config/          # 配置相关模块
 │   │   └── settings.py  # 配置加载和管理
 │   ├── core/            # 核心功能模块
-│   │   ├── db.py        # 数据库连接
 │   │   └── scheduler.py # 任务调度器
 │   ├── services/        # 服务模块
 │   │   ├── notifier.py  # 通知服务

@@ -1,0 +1,77 @@
+{
+    "notifications": {
+        "email_enabled": "on",
+        "telegram_enabled": "on",
+        "notify_on_status": "error",
+        "format": "text",
+        "email": {
+            "smtp_server": "smtp.qq.com",
+            "smtp_port": "587",
+            "username": "fangfeng335@qq.com",
+            "password": "xuyomfhnxenlbggj",
+            "sender": "fangfeng335@qq.com",
+            "recipients": "fangfeng335@qq.com\n250969751@qq.com",
+            "use_tls": "on"
+        },
+        "telegram": {
+            "token": "7638015275:AAGuzFYTwgiihQ5iIrYXNJA-JE1ZPvGPWr4",
+            "chat_ids": "2006080530"
+        }
+    },
+    "service_checks": {
+        "enabled": true,
+        "interval_minutes": 5,
+        "endpoints": [
+            {
+                "id": "EVM_tracker后台服务",
+                "name": "EVM_tracker后台服务",
+                "url": "http://localhost:3001/health",
+                "method": "GET",
+                "interval_minutes": 10,
+                "enabled": true,
+                "expected_status": 200,
+                "expected_content": "\"status\":\"ok\"",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "body": null,
+                "json_check": null
+            },
+            {
+                "name": "Ankr Token是否能用",
+                "url": "https://rpc.ankr.com/multichain/498c84e3e1b62890931577d9a7a5eb46b4af57a32bb903ff2b1bb9401d8d77aa",
+                "method": "POST",
+                "expected_status": 200,
+                "expected_content": "\"blockchain\":\"eth\"",
+                "headers": {
+                    "Content-Type": "application/json"
+                },
+                "interval_minutes": 60,
+                "json_check": {
+                    "path": "result.stats[0].blockchain",
+                    "expected_value": "eth"
+                },
+                "body": "{\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"ankr_getBlockchainStats\",\n  \"params\": {\n    \"blockchain\": \"eth\"\n  },\n  \"id\": 1\n}\n",
+                "id": "Ankr Token是否能用"
+            },
+            {
+                "id": "test",
+                "name": "test2",
+                "url": "http://127.0.0.1:3003/config/#endpointSettings",
+                "method": "GET",
+                "interval_minutes": 10,
+                "enabled": true,
+                "expected_status": 200,
+                "expected_content": null,
+                "headers": null,
+                "body": null,
+                "json_check": null
+            }
+        ]
+    },
+    "general": {
+        "app_name": "web服务监控与通知系统",
+        "logging_level": "info",
+        "check_interval": "60"
+    }
+}

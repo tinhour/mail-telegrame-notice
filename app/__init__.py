@@ -7,4 +7,17 @@
 3. 系统资源监控：监控CPU、内存和磁盘使用情况
 """
 
-__version__ = "0.1.0" 
+from flask import Flask
+from app.routes.config_routes import config_bp
+from app.routes import web_bp
+
+__version__ = "0.1.0"
+
+def create_app():
+    app = Flask(__name__)
+    
+    # 注册蓝图
+    app.register_blueprint(config_bp)
+    app.register_blueprint(web_bp)
+    
+    return app 

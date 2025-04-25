@@ -1,0 +1,581 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>服务监控与通知系统 - 系统配置</title>
+    <script src="https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <style>
+        .sidebar {
+            min-width: 250px;
+            max-width: 250px;
+            height: 100vh;
+            position: fixed;
+            top: 0;
+            left: 0;
+            background-color: #343a40;
+            color: #fff;
+            transition: all 0.3s;
+            z-index: 1000;
+        }
+        
+        .sidebar.active {
+            margin-left: -250px;
+        }
+        
+        .sidebar .sidebar-header {
+            padding: 20px;
+            background-color: #2c3136;
+        }
+        
+        .sidebar ul.nav {
+            padding: 20px 0;
+        }
+        
+        .sidebar ul.nav li.nav-item {
+            margin-bottom: 5px;
+        }
+        
+        .sidebar ul.nav li.nav-item a.nav-link {
+            color: #adb5bd;
+            padding: 10px 20px;
+            border-radius: 0;
+        }
+        
+        .sidebar ul.nav li.nav-item a.nav-link:hover,
+        .sidebar ul.nav li.nav-item a.nav-link.active {
+            color: #fff;
+            background-color: #495057;
+        }
+        
+        .sidebar ul.nav li.nav-item a.nav-link i {
+            margin-right: 10px;
+        }
+        
+        .content {
+            width: calc(100% - 250px);
+            min-height: 100vh;
+            transition: all 0.3s;
+            position: absolute;
+            top: 0;
+            right: 0;
+        }
+        
+        .content.active {
+            width: 100%;
+        }
+        
+        .settings-section {
+            margin-bottom: 20px;
+        }
+        
+        .status-indicator {
+            display: inline-block;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 8px;
+        }
+        
+        .status-ok {
+            background-color: #28a745;
+        }
+        
+        .status-warning {
+            background-color: #ffc107;
+        }
+        
+        .status-error {
+            background-color: #dc3545;
+        }
+        
+        .status-unknown {
+            background-color: #6c757d;
+        }
+        
+        @media (max-width: 768px) {
+            .sidebar {
+                margin-left: -250px;
+            }
+            
+            .sidebar.active {
+                margin-left: 0;
+            }
+            
+            .content {
+                width: 100%;
+            }
+            
+            .content.active {
+                width: calc(100% - 250px);
+                position: relative;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="wrapper">
+        <!-- 侧边栏 -->
+        <nav id="sidebar" class="sidebar">
+            <div class="sidebar-header">
+                <h3>服务监控与通知系统</h3>
+                <button type="button" id="sidebarToggle" class="btn btn-sm btn-outline-light d-md-none">
+                    <i class="bi bi-x"></i>
+                </button>
+            </div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link" data-section="generalSettings" href="#">
+                        <i class="bi bi-gear"></i>常规设置
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-section="notificationSettings" href="#">
+                        <i class="bi bi-bell"></i>通知设置
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-section="smtpSettings" href="#">
+                        <i class="bi bi-envelope"></i>邮件设置
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-section="webhookSettings" href="#">
+                        <i class="bi bi-link-45deg"></i>Webhook设置
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-section="telegramSettings" href="#">
+                        <i class="bi bi-telegram"></i>Telegram设置
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-section="endpointSettings" href="#">
+                        <i class="bi bi-hdd-network"></i>端点管理
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" data-section="advancedSettings" href="#">
+                        <i class="bi bi-sliders"></i>高级设置
+                    </a>
+                </li>
+            </ul>
+            <hr>
+            <div class="px-3 mb-3">
+                <button class="btn btn-outline-light w-100 mb-2" id="exportConfigBtn">
+                    <i class="bi bi-download me-2"></i>导出配置
+                </button>
+                <button class="btn btn-outline-light w-100" data-bs-toggle="modal" data-bs-target="#importConfigModal">
+                    <i class="bi bi-upload me-2"></i>导入配置
+                </button>
+            </div>
+        </nav>
+
+        <!-- 主内容区 -->
+        <div class="content">
+            <!-- 顶部导航栏 -->
+            <nav class="navbar navbar-expand-lg navbar-light bg-light shadow-sm">
+                <div class="container-fluid">
+                    <button type="button" id="sidebarToggle" class="btn btn-outline-secondary me-2">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <span class="navbar-brand">系统配置</span>
+                    <div class="ms-auto">
+                        <button class="btn btn-outline-primary btn-sm" id="testNotificationBtn">
+                            <i class="bi bi-send"></i> 测试通知
+                        </button>
+                        <a href="/" class="btn btn-outline-secondary btn-sm ms-2">
+                            <i class="bi bi-house-door"></i> 返回首页
+                        </a>
+                    </div>
+                </div>
+            </nav>
+
+            <!-- 警告提示容器 -->
+            <div class="container mt-3" id="alertContainer"></div>
+
+            <!-- 设置内容区域 -->
+            <div class="container py-4">
+                <!-- 常规设置 -->
+                <section id="generalSettings" class="settings-section">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">常规设置</h5>
+                            <span class="badge bg-primary">基础配置</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="generalSettingsForm">
+                                <div class="mb-3">
+                                    <label for="appName" class="form-label">应用名称</label>
+                                    <input type="text" class="form-control" id="appName" name="app_name" placeholder="EVM追踪服务">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="loggingLevel" class="form-label">日志级别</label>
+                                    <select class="form-select" id="loggingLevel" name="logging_level">
+                                        <option value="debug">Debug</option>
+                                        <option value="info" selected>Info</option>
+                                        <option value="warning">Warning</option>
+                                        <option value="error">Error</option>
+                                        <option value="critical">Critical</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="checkInterval" class="form-label">默认检查间隔（秒）</label>
+                                    <input type="number" class="form-control" id="checkInterval" name="check_interval" min="10" value="60">
+                                </div>
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 通知设置 -->
+                <section id="notificationSettings" class="settings-section d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">通知设置</h5>
+                            <span class="badge bg-primary">通知配置</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="notificationSettingsForm">
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="enableEmailNotifications" name="email_enabled">
+                                    <label class="form-check-label" for="enableEmailNotifications">启用电子邮件通知</label>
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="enableWebhookNotifications" name="webhook_enabled">
+                                    <label class="form-check-label" for="enableWebhookNotifications">启用Webhook通知</label>
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="enableTelegramNotifications" name="telegram_enabled">
+                                    <label class="form-check-label" for="enableTelegramNotifications">启用Telegram通知</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="notifyOnStatus" class="form-label">通知触发状态</label>
+                                    <select class="form-select" id="notifyOnStatus" name="notify_on_status">
+                                        <option value="all">所有状态变化</option>
+                                        <option value="error" selected>仅错误状态</option>
+                                        <option value="error,warning">错误和警告</option>
+                                        <option value="recovered">仅恢复状态</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="notifyFormat" class="form-label">通知格式</label>
+                                    <select class="form-select" id="notifyFormat" name="format">
+                                        <option value="text" selected>纯文本</option>
+                                        <option value="html">HTML</option>
+                                        <option value="json">JSON</option>
+                                    </select>
+                                </div>
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- SMTP设置 -->
+                <section id="smtpSettings" class="settings-section d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">邮件设置</h5>
+                            <span class="badge bg-primary">SMTP配置</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="smtpSettingsForm">
+                                <div class="mb-3">
+                                    <label for="smtpServer" class="form-label">SMTP服务器</label>
+                                    <input type="text" class="form-control" id="smtpServer" name="smtp_server" placeholder="smtp.example.com">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="smtpPort" class="form-label">SMTP端口</label>
+                                    <input type="number" class="form-control" id="smtpPort" name="smtp_port" value="587">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="smtpUsername" class="form-label">SMTP用户名</label>
+                                    <input type="text" class="form-control" id="smtpUsername" name="username" placeholder="username@example.com">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="smtpPassword" class="form-label">SMTP密码</label>
+                                    <input type="password" class="form-control" id="smtpPassword" name="password">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="emailFrom" class="form-label">发件人邮箱</label>
+                                    <input type="email" class="form-control" id="emailFrom" name="sender" placeholder="noreply@example.com">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="emailTo" class="form-label">收件人邮箱</label>
+                                    <textarea class="form-control" id="emailTo" name="recipients" rows="3" placeholder="admin@example.com&#10;user@example.com"></textarea>
+                                    <div class="form-text">每行一个邮箱地址</div>
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="smtpUseTLS" name="use_tls" checked>
+                                    <label class="form-check-label" for="smtpUseTLS">使用TLS加密</label>
+                                </div>
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Telegram设置 -->
+                <section id="telegramSettings" class="settings-section d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Telegram设置</h5>
+                            <span class="badge bg-primary">机器人配置</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="telegramSettingsForm">
+                                <div class="mb-3">
+                                    <label for="telegramToken" class="form-label">Bot Token</label>
+                                    <input type="text" class="form-control" id="telegramToken" name="token" placeholder="123456789:ABCdefGHIjklMNOpqrsTUVwxyz">
+                                    <div class="form-text">从 @BotFather 获取的机器人令牌</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="telegramChatIds" class="form-label">聊天ID</label>
+                                    <textarea class="form-control" id="telegramChatIds" name="chat_ids" rows="3" placeholder="-1001234567890&#10;-1009876543210"></textarea>
+                                    <div class="form-text">每行一个聊天ID，可以是群组ID或用户ID</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Webhook设置 -->
+                <section id="webhookSettings" class="settings-section d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">Webhook设置</h5>
+                            <span class="badge bg-primary">回调配置</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="webhookSettingsForm">
+                                <div class="mb-3">
+                                    <label for="webhookUrl" class="form-label">Webhook URL</label>
+                                    <input type="url" class="form-control" id="webhookUrl" name="url" placeholder="https://example.com/webhook">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="webhookMethod" class="form-label">请求方法</label>
+                                    <select class="form-select" id="webhookMethod" name="method">
+                                        <option value="POST" selected>POST</option>
+                                        <option value="GET">GET</option>
+                                        <option value="PUT">PUT</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="webhookHeaders" class="form-label">请求头</label>
+                                    <textarea class="form-control" id="webhookHeaders" name="headers" rows="3" placeholder='{"Content-Type": "application/json", "X-API-Key": "your-api-key"}'></textarea>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="webhookTemplate" class="form-label">请求体模板</label>
+                                    <textarea class="form-control" id="webhookTemplate" name="template" rows="5" placeholder='{"status": "{{status}}", "name": "{{name}}", "url": "{{url}}", "message": "{{message}}"}'></textarea>
+                                    <div class="form-text">支持变量: {{name}}, {{url}}, {{status}}, {{message}}, {{timestamp}}</div>
+                                </div>
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 端点管理 -->
+                <section id="endpointSettings" class="settings-section d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">端点管理</h5>
+                            <button type="button" class="btn btn-success btn-sm btn-add-endpoint" data-bs-toggle="modal" data-bs-target="#addEndpointModal">
+                                <i class="bi bi-plus-circle me-1"></i>添加端点
+                            </button>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover" id="endpointsTable">
+                                    <thead>
+                                        <tr>
+                                            <th>名称</th>
+                                            <th>URL</th>
+                                            <th>状态</th>
+                                            <th>最后检查</th>
+                                            <th>操作</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td colspan="5" class="text-center">加载中...</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            <!-- 端点卡片视图 -->
+                            <div class="mt-4">
+                                <h6 class="mb-3">端点卡片视图</h6>
+                                <div id="endpointsContainer">
+                                    <div class="alert alert-info">加载中...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 高级设置 -->
+                <section id="advancedSettings" class="settings-section d-none">
+                    <div class="card">
+                        <div class="card-header d-flex justify-content-between align-items-center">
+                            <h5 class="mb-0">高级设置</h5>
+                            <span class="badge bg-warning">谨慎修改</span>
+                        </div>
+                        <div class="card-body">
+                            <form id="advancedSettingsForm">
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="enableDebugMode" name="debug_mode">
+                                    <label class="form-check-label" for="enableDebugMode">启用调试模式</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="maxRetries" class="form-label">最大重试次数</label>
+                                    <input type="number" class="form-control" id="maxRetries" name="max_retries" min="0" value="3">
+                                </div>
+                                <div class="mb-3">
+                                    <label for="requestTimeout" class="form-label">请求超时（秒）</label>
+                                    <input type="number" class="form-control" id="requestTimeout" name="request_timeout" min="1" value="10">
+                                </div>
+                                <div class="mb-3 form-check">
+                                    <input type="checkbox" class="form-check-input" id="enableLogs" name="enable_logs" checked>
+                                    <label class="form-check-label" for="enableLogs">启用日志记录</label>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="logRetentionDays" class="form-label">日志保留天数</label>
+                                    <input type="number" class="form-control" id="logRetentionDays" name="log_retention_days" min="1" value="30">
+                                </div>
+                                <button type="submit" class="btn btn-primary">保存设置</button>
+                            </form>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </div>
+
+    <!-- 添加/编辑端点模态框 -->
+    <div class="modal fade" id="addEndpointModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="modalTitle">添加新端点</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="addEndpointForm">
+                        <input type="hidden" id="endpointId" name="endpointId" value="">
+                        <div class="mb-3">
+                            <label for="endpointName" class="form-label">端点名称 <span class="text-danger">*</span></label>
+                            <input type="text" class="form-control" id="endpointName" name="endpointName" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointUrl" class="form-label">URL <span class="text-danger">*</span></label>
+                            <input type="url" class="form-control" id="endpointUrl" name="endpointUrl" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointMethod" class="form-label">请求方法</label>
+                            <select class="form-select" id="endpointMethod" name="endpointMethod">
+                                <option value="GET" selected>GET</option>
+                                <option value="POST">POST</option>
+                                <option value="HEAD">HEAD</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointInterval" class="form-label">检查间隔（秒）</label>
+                            <input type="number" class="form-control" id="endpointInterval" name="endpointInterval" min="10" value="60">
+                        </div>
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="endpointEnabled" name="endpointEnabled" checked>
+                            <label class="form-check-label" for="endpointEnabled">启用端点</label>
+                        </div>
+                        <hr>
+                        <h6>高级配置</h6>
+                        <div class="mb-3">
+                            <label for="endpointExpectedStatus" class="form-label">期望状态码</label>
+                            <input type="number" class="form-control" id="endpointExpectedStatus" name="endpointExpectedStatus" value="200">
+                            <div class="form-text">HTTP响应状态码，通常为200（成功）</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointExpectedContent" class="form-label">期望内容</label>
+                            <input type="text" class="form-control" id="endpointExpectedContent" name="endpointExpectedContent">
+                            <div class="form-text">响应内容中应该包含的文本</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointHeaders" class="form-label">请求头</label>
+                            <textarea class="form-control" id="endpointHeaders" name="endpointHeaders" rows="3" placeholder='{"Content-Type": "application/json"}'></textarea>
+                            <div class="form-text">JSON格式的请求头</div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="endpointBody" class="form-label">请求体</label>
+                            <textarea class="form-control" id="endpointBody" name="endpointBody" rows="5" placeholder='{"key": "value"}'></textarea>
+                            <div class="form-text">用于POST请求的请求体，JSON格式</div>
+                        </div>
+                        <div class="card mb-3">
+                            <div class="card-header d-flex justify-content-between align-items-center">
+                                <h6 class="mb-0">JSON响应检查</h6>
+                                <div class="form-check form-switch">
+                                    <input class="form-check-input" type="checkbox" id="enableJsonCheck">
+                                    <label class="form-check-label" for="enableJsonCheck">启用</label>
+                                </div>
+                            </div>
+                            <div class="card-body" id="jsonCheckSection">
+                                <div class="mb-3">
+                                    <label for="endpointJsonCheckPath" class="form-label">JSON路径</label>
+                                    <input type="text" class="form-control" id="endpointJsonCheckPath" name="endpointJsonCheckPath" placeholder="result.status">
+                                    <div class="form-text">JSON响应中要检查的路径</div>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="endpointJsonCheckValue" class="form-label">期望值</label>
+                                    <input type="text" class="form-control" id="endpointJsonCheckValue" name="endpointJsonCheckValue" placeholder="success">
+                                    <div class="form-text">JSON路径对应的期望值</div>
+                                </div>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" form="addEndpointForm" class="btn btn-primary">保存</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 导入配置模态框 -->
+    <div class="modal fade" id="importConfigModal" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">导入配置</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="关闭"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="importConfigForm">
+                        <div class="mb-3">
+                            <label for="configFile" class="form-label">配置文件</label>
+                            <input class="form-control" type="file" id="configFile" name="configFile" accept=".json,.yaml,.yml">
+                            <div class="form-text">支持JSON或YAML格式</div>
+                        </div>
+                        <div class="alert alert-warning">
+                            <i class="bi bi-exclamation-triangle me-2"></i>导入将覆盖当前配置，请确保备份重要数据
+                        </div>
+                    </form>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                    <button type="submit" form="importConfigForm" class="btn btn-primary">导入</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/config.js') }}"></script>
+</body>
+</html> 

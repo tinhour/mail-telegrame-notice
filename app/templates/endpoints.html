@@ -1,0 +1,570 @@
+{% extends 'layout.html' %}
+
+{% block title %}监控系统 - 端点管理{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-12">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2>端点管理</h2>
+            <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEndpointModal">
+                <i class="fas fa-plus me-1"></i>添加端点
+            </button>
+        </div>
+        
+        <div id="alert-placeholder"></div>
+        
+        <div class="card">
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-striped table-hover" id="endpointsTable">
+                        <thead>
+                            <tr>
+                                <th>名称</th>
+                                <th>URL</th>
+                                <th>方法</th>
+                                <th>预期状态码</th>
+                                <th>检查间隔</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <!-- 端点列表将通过JavaScript填充 -->
+                        </tbody>
+                    </table>
+                </div>
+                
+                <div id="noEndpointsMessage" class="text-center p-4" style="display: none;">
+                    <i class="fas fa-info-circle mb-2" style="font-size: 2rem;"></i>
+                    <p>暂无端点</p>
+                    <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addEndpointModal">
+                        <i class="fas fa-plus me-1"></i>添加端点
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 添加端点模态框 -->
+<div class="modal fade" id="addEndpointModal" tabindex="-1" aria-labelledby="addEndpointModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="addEndpointModalLabel">添加端点</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="addEndpointForm">
+                    <div class="mb-3">
+                        <label for="endpointName" class="form-label">名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="endpointName" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="endpointUrl" class="form-label">URL <span class="text-danger">*</span></label>
+                        <input type="url" class="form-control" id="endpointUrl" required>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="endpointMethod" class="form-label">请求方法</label>
+                            <select class="form-select" id="endpointMethod">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="endpointStatus" class="form-label">预期状态码</label>
+                            <input type="number" class="form-control" id="endpointStatus" value="200">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="endpointInterval" class="form-label">检查间隔（分钟）</label>
+                            <input type="number" class="form-control" id="endpointInterval" value="5" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="endpointContent" class="form-label">预期内容（可选）</label>
+                        <input type="text" class="form-control" id="endpointContent" placeholder="响应中应包含的内容">
+                        <div class="form-text">如果指定，响应内容必须包含此文本</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="endpointHeaders" class="form-label">请求头（可选）</label>
+                        <textarea class="form-control" id="endpointHeaders" rows="2" placeholder='{"Content-Type": "application/json"}'></textarea>
+                        <div class="form-text">JSON格式，例如：{"Content-Type": "application/json"}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="endpointBody" class="form-label">请求体（可选，仅用于POST/PUT）</label>
+                        <textarea class="form-control" id="endpointBody" rows="3" placeholder='{"key": "value"}'></textarea>
+                        <div class="form-text">JSON格式，例如：{"key": "value"}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="enableJsonCheck">
+                            <label class="form-check-label" for="enableJsonCheck">启用JSON响应检查</label>
+                        </div>
+                    </div>
+                    
+                    <div id="jsonCheckSection" style="display: none;">
+                        <div class="mb-3">
+                            <label for="jsonPath" class="form-label">JSON路径</label>
+                            <input type="text" class="form-control" id="jsonPath" placeholder="result.status">
+                            <div class="form-text">JSON路径，例如：result.stats[0].blockchain</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="jsonExpectedValue" class="form-label">预期值</label>
+                            <input type="text" class="form-control" id="jsonExpectedValue" placeholder="ok">
+                            <div class="form-text">路径对应的预期值</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="saveEndpointBtn">保存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 编辑端点模态框 -->
+<div class="modal fade" id="editEndpointModal" tabindex="-1" aria-labelledby="editEndpointModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editEndpointModalLabel">编辑端点</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <form id="editEndpointForm">
+                    <input type="hidden" id="editEndpointOriginalName">
+                    
+                    <div class="mb-3">
+                        <label for="editEndpointName" class="form-label">名称 <span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="editEndpointName" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editEndpointUrl" class="form-label">URL <span class="text-danger">*</span></label>
+                        <input type="url" class="form-control" id="editEndpointUrl" required>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-4">
+                            <label for="editEndpointMethod" class="form-label">请求方法</label>
+                            <select class="form-select" id="editEndpointMethod">
+                                <option value="GET">GET</option>
+                                <option value="POST">POST</option>
+                                <option value="PUT">PUT</option>
+                                <option value="DELETE">DELETE</option>
+                            </select>
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="editEndpointStatus" class="form-label">预期状态码</label>
+                            <input type="number" class="form-control" id="editEndpointStatus" value="200">
+                        </div>
+                        
+                        <div class="col-md-4">
+                            <label for="editEndpointInterval" class="form-label">检查间隔（分钟）</label>
+                            <input type="number" class="form-control" id="editEndpointInterval" value="5" min="1">
+                        </div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editEndpointContent" class="form-label">预期内容（可选）</label>
+                        <input type="text" class="form-control" id="editEndpointContent" placeholder="响应中应包含的内容">
+                        <div class="form-text">如果指定，响应内容必须包含此文本</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editEndpointHeaders" class="form-label">请求头（可选）</label>
+                        <textarea class="form-control" id="editEndpointHeaders" rows="2" placeholder='{"Content-Type": "application/json"}'></textarea>
+                        <div class="form-text">JSON格式，例如：{"Content-Type": "application/json"}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="editEndpointBody" class="form-label">请求体（可选，仅用于POST/PUT）</label>
+                        <textarea class="form-control" id="editEndpointBody" rows="3" placeholder='{"key": "value"}'></textarea>
+                        <div class="form-text">JSON格式，例如：{"key": "value"}</div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <div class="form-check form-switch">
+                            <input class="form-check-input" type="checkbox" id="editEnableJsonCheck">
+                            <label class="form-check-label" for="editEnableJsonCheck">启用JSON响应检查</label>
+                        </div>
+                    </div>
+                    
+                    <div id="editJsonCheckSection" style="display: none;">
+                        <div class="mb-3">
+                            <label for="editJsonPath" class="form-label">JSON路径</label>
+                            <input type="text" class="form-control" id="editJsonPath" placeholder="result.status">
+                            <div class="form-text">JSON路径，例如：result.stats[0].blockchain</div>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="editJsonExpectedValue" class="form-label">预期值</label>
+                            <input type="text" class="form-control" id="editJsonExpectedValue" placeholder="ok">
+                            <div class="form-text">路径对应的预期值</div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" id="updateEndpointBtn">更新</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 删除确认模态框 -->
+<div class="modal fade" id="deleteEndpointModal" tabindex="-1" aria-labelledby="deleteEndpointModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteEndpointModalLabel">确认删除</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>您确定要删除端点 <span id="deleteEndpointName" class="fw-bold"></span> 吗？</p>
+                <p class="text-danger">此操作无法撤销。</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-danger" id="confirmDeleteBtn">删除</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    // 加载端点列表
+    function loadEndpoints() {
+        $.get('/api/endpoints', function(data) {
+            const endpoints = data.endpoints || [];
+            const tbody = $('#endpointsTable tbody');
+            tbody.empty();
+            
+            if (endpoints.length === 0) {
+                $('#endpointsTable').hide();
+                $('#noEndpointsMessage').show();
+                return;
+            }
+            
+            $('#endpointsTable').show();
+            $('#noEndpointsMessage').hide();
+            
+            endpoints.forEach(function(endpoint) {
+                const row = `
+                    <tr>
+                        <td>${endpoint.name}</td>
+                        <td>${endpoint.url}</td>
+                        <td>${endpoint.method || 'GET'}</td>
+                        <td>${endpoint.expected_status || 200}</td>
+                        <td>${endpoint.interval_minutes || 5} 分钟</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary edit-endpoint" data-endpoint-name="${endpoint.name}">
+                                <i class="fas fa-edit"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-danger delete-endpoint" data-endpoint-name="${endpoint.name}">
+                                <i class="fas fa-trash"></i>
+                            </button>
+                        </td>
+                    </tr>
+                `;
+                tbody.append(row);
+            });
+            
+            // 绑定编辑按钮点击事件
+            $('.edit-endpoint').click(function() {
+                const endpointName = $(this).data('endpoint-name');
+                openEditModal(endpointName, endpoints);
+            });
+            
+            // 绑定删除按钮点击事件
+            $('.delete-endpoint').click(function() {
+                const endpointName = $(this).data('endpoint-name');
+                openDeleteModal(endpointName);
+            });
+        }).fail(function(err) {
+            showAlert('加载端点列表失败', 'danger');
+            console.error('加载端点列表失败:', err);
+        });
+    }
+    
+    // 打开编辑模态框
+    function openEditModal(endpointName, endpoints) {
+        const endpoint = endpoints.find(ep => ep.name === endpointName);
+        if (!endpoint) return;
+        
+        $('#editEndpointOriginalName').val(endpoint.name);
+        $('#editEndpointName').val(endpoint.name);
+        $('#editEndpointUrl').val(endpoint.url);
+        $('#editEndpointMethod').val(endpoint.method || 'GET');
+        $('#editEndpointStatus').val(endpoint.expected_status || 200);
+        $('#editEndpointInterval').val(endpoint.interval_minutes || 5);
+        $('#editEndpointContent').val(endpoint.expected_content || '');
+        
+        // 处理请求头
+        if (endpoint.headers && typeof endpoint.headers === 'object') {
+            $('#editEndpointHeaders').val(JSON.stringify(endpoint.headers));
+        } else {
+            $('#editEndpointHeaders').val('');
+        }
+        
+        // 处理请求体
+        if (endpoint.body) {
+            if (typeof endpoint.body === 'object') {
+                $('#editEndpointBody').val(JSON.stringify(endpoint.body));
+            } else {
+                $('#editEndpointBody').val(endpoint.body);
+            }
+        } else {
+            $('#editEndpointBody').val('');
+        }
+        
+        // 处理JSON检查
+        if (endpoint.json_check) {
+            $('#editEnableJsonCheck').prop('checked', true);
+            $('#editJsonCheckSection').show();
+            $('#editJsonPath').val(endpoint.json_check.path || '');
+            $('#editJsonExpectedValue').val(endpoint.json_check.expected_value || '');
+        } else {
+            $('#editEnableJsonCheck').prop('checked', false);
+            $('#editJsonCheckSection').hide();
+            $('#editJsonPath').val('');
+            $('#editJsonExpectedValue').val('');
+        }
+        
+        $('#editEndpointModal').modal('show');
+    }
+    
+    // 打开删除确认模态框
+    function openDeleteModal(endpointName) {
+        $('#deleteEndpointName').text(endpointName);
+        $('#confirmDeleteBtn').data('endpoint-name', endpointName);
+        $('#deleteEndpointModal').modal('show');
+    }
+    
+    // 页面加载完成后执行
+    $(document).ready(function() {
+        // 加载端点列表
+        loadEndpoints();
+        
+        // 监听JSON检查开关
+        $('#enableJsonCheck').change(function() {
+            if ($(this).is(':checked')) {
+                $('#jsonCheckSection').show();
+            } else {
+                $('#jsonCheckSection').hide();
+            }
+        });
+        
+        $('#editEnableJsonCheck').change(function() {
+            if ($(this).is(':checked')) {
+                $('#editJsonCheckSection').show();
+            } else {
+                $('#editJsonCheckSection').hide();
+            }
+        });
+        
+        // 保存新端点
+        $('#saveEndpointBtn').click(function() {
+            const name = $('#endpointName').val();
+            const url = $('#endpointUrl').val();
+            
+            if (!name || !url) {
+                showAlert('端点名称和URL为必填项', 'danger');
+                return;
+            }
+            
+            // 构建端点数据
+            const endpoint = {
+                name: name,
+                url: url,
+                method: $('#endpointMethod').val(),
+                expected_status: parseInt($('#endpointStatus').val()) || 200,
+                interval_minutes: parseInt($('#endpointInterval').val()) || 5
+            };
+            
+            // 添加可选字段
+            const expectedContent = $('#endpointContent').val();
+            if (expectedContent) {
+                endpoint.expected_content = expectedContent;
+            }
+            
+            // 处理请求头
+            const headersStr = $('#endpointHeaders').val();
+            if (headersStr) {
+                try {
+                    endpoint.headers = JSON.parse(headersStr);
+                } catch (e) {
+                    showAlert('请求头格式无效，请使用有效的JSON格式', 'danger');
+                    return;
+                }
+            }
+            
+            // 处理请求体
+            const bodyStr = $('#endpointBody').val();
+            if (bodyStr) {
+                try {
+                    endpoint.body = JSON.parse(bodyStr);
+                } catch (e) {
+                    endpoint.body = bodyStr;
+                }
+            }
+            
+            // 处理JSON检查
+            if ($('#enableJsonCheck').is(':checked')) {
+                const jsonPath = $('#jsonPath').val();
+                const jsonExpectedValue = $('#jsonExpectedValue').val();
+                
+                if (jsonPath && jsonExpectedValue) {
+                    endpoint.json_check = {
+                        path: jsonPath,
+                        expected_value: jsonExpectedValue
+                    };
+                } else {
+                    showAlert('启用JSON检查时，路径和预期值为必填项', 'danger');
+                    return;
+                }
+            }
+            
+            // 发送请求
+            $.ajax({
+                url: '/api/endpoints',
+                type: 'POST',
+                contentType: 'application/json',
+                data: JSON.stringify(endpoint),
+                success: function(response) {
+                    $('#addEndpointModal').modal('hide');
+                    loadEndpoints();
+                    showAlert('端点已添加');
+                    
+                    // 清空表单
+                    $('#addEndpointForm')[0].reset();
+                    $('#jsonCheckSection').hide();
+                },
+                error: function(err) {
+                    showAlert('添加端点失败: ' + (err.responseJSON ? err.responseJSON.error : '未知错误'), 'danger');
+                    console.error('添加端点失败:', err);
+                }
+            });
+        });
+        
+        // 更新端点
+        $('#updateEndpointBtn').click(function() {
+            const originalName = $('#editEndpointOriginalName').val();
+            const name = $('#editEndpointName').val();
+            const url = $('#editEndpointUrl').val();
+            
+            if (!name || !url) {
+                showAlert('端点名称和URL为必填项', 'danger');
+                return;
+            }
+            
+            // 构建端点数据
+            const endpoint = {
+                name: name,
+                url: url,
+                method: $('#editEndpointMethod').val(),
+                expected_status: parseInt($('#editEndpointStatus').val()) || 200,
+                interval_minutes: parseInt($('#editEndpointInterval').val()) || 5
+            };
+            
+            // 添加可选字段
+            const expectedContent = $('#editEndpointContent').val();
+            if (expectedContent) {
+                endpoint.expected_content = expectedContent;
+            }
+            
+            // 处理请求头
+            const headersStr = $('#editEndpointHeaders').val();
+            if (headersStr) {
+                try {
+                    endpoint.headers = JSON.parse(headersStr);
+                } catch (e) {
+                    showAlert('请求头格式无效，请使用有效的JSON格式', 'danger');
+                    return;
+                }
+            }
+            
+            // 处理请求体
+            const bodyStr = $('#editEndpointBody').val();
+            if (bodyStr) {
+                try {
+                    endpoint.body = JSON.parse(bodyStr);
+                } catch (e) {
+                    endpoint.body = bodyStr;
+                }
+            }
+            
+            // 处理JSON检查
+            if ($('#editEnableJsonCheck').is(':checked')) {
+                const jsonPath = $('#editJsonPath').val();
+                const jsonExpectedValue = $('#editJsonExpectedValue').val();
+                
+                if (jsonPath && jsonExpectedValue) {
+                    endpoint.json_check = {
+                        path: jsonPath,
+                        expected_value: jsonExpectedValue
+                    };
+                } else {
+                    showAlert('启用JSON检查时，路径和预期值为必填项', 'danger');
+                    return;
+                }
+            }
+            
+            // 发送请求
+            $.ajax({
+                url: `/api/endpoints/${encodeURIComponent(originalName)}`,
+                type: 'PUT',
+                contentType: 'application/json',
+                data: JSON.stringify(endpoint),
+                success: function(response) {
+                    $('#editEndpointModal').modal('hide');
+                    loadEndpoints();
+                    showAlert('端点已更新');
+                },
+                error: function(err) {
+                    showAlert('更新端点失败: ' + (err.responseJSON ? err.responseJSON.error : '未知错误'), 'danger');
+                    console.error('更新端点失败:', err);
+                }
+            });
+        });
+        
+        // 删除端点
+        $('#confirmDeleteBtn').click(function() {
+            const endpointName = $(this).data('endpoint-name');
+            
+            $.ajax({
+                url: `/api/endpoints/${encodeURIComponent(endpointName)}`,
+                type: 'DELETE',
+                success: function(response) {
+                    $('#deleteEndpointModal').modal('hide');
+                    loadEndpoints();
+                    showAlert('端点已删除');
+                },
+                error: function(err) {
+                    $('#deleteEndpointModal').modal('hide');
+                    showAlert('删除端点失败: ' + (err.responseJSON ? err.responseJSON.error : '未知错误'), 'danger');
+                    console.error('删除端点失败:', err);
+                }
+            });
+        });
+    });
+</script>
+{% endblock %} 

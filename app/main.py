@@ -7,28 +7,26 @@ import logging
 import argparse
 import time
 import importlib
-from flask import Flask, jsonify, request
+from flask import Flask, jsonify, request, render_template
 
 # 导入配置和核心模块
 from app.config.settings import CONFIG, load_config
-# 有条件地导入数据库模块
-try:
-    from app.core.db import init_db
-    DB_AVAILABLE = True
-except ImportError:
-    DB_AVAILABLE = False
-    logging.warning("数据库模块不可用，将只从配置文件读取配置")
-
 from app.core.scheduler import task_scheduler
 from app.services.notifier import notifier
 from app.services.service_check import service_checker
-from app.services.system_monitor import system_monitor
+
+# 导入应用工厂函数
+from app import create_app
 
 # 配置日志
 logger = logging.getLogger(__name__)
 
 # 创建Flask应用
-app = Flask(__name__)
+app = create_app()
+
+@app.route('/config/')
+def config_new_direct():
+    return render_template('config.html')
 
 @app.route('/health', methods=['GET'])
 def health_check():
@@ -42,13 +40,6 @@ def status():
         # 获取服务检查状态
         service_status = service_checker.get_status_summary()
         
-        # 获取系统资源状态
-        try:
-            system_status = system_monitor.get_system_status()
-        except Exception as e:
-            logger.error(f"获取系统状态失败: {str(e)}")
-            system_status = {"error": "获取系统状态失败"}
-        
         # 获取调度器任务
         try:
             scheduler_jobs = task_scheduler.list_jobs()
@@ -61,7 +52,6 @@ def status():
             "status": "运行中",
             "version": "0.1.0",
             "services": service_status,
-            "system": system_status,
             "scheduled_jobs": scheduler_jobs
         })
     except Exception as e:
@@ -78,40 +68,52 @@ def status():
 def manage_endpoints():
     """管理服务检查端点"""
     if request.method == 'GET':
-        # 返回当前的端点列表
-        return jsonify(service_checker.endpoints)
-    elif request.method == 'POST':
-        # 添加新端点
-        data = request.json
-        if not data:
-            return jsonify({"error": "请提供有效的端点配置"}), 400
+        # 返回所有端点
+        endpoints = []
+        for i, endpoint in enumerate(service_checker.endpoints):
+            # 创建端点的可序列化副本
+            endpoint_copy = dict(endpoint)
+            # 添加ID字段，使用端点名称作为ID
+            endpoint_copy['id'] = endpoint.get('name', str(i))
+            # 排除不可序列化的字段
+            if 'json_check' in endpoint_copy and isinstance(endpoint_copy['json_check'], dict):
+                endpoint_copy['json_check'] = dict(endpoint_copy['json_check'])
+            endpoints.append(endpoint_copy)
             
-        required_fields = ['name', 'url']
-        missing_fields = [field for field in required_fields if field not in data]
-        if missing_fields:
-            return jsonify({"error": f"缺少必要字段: {', '.join(missing_fields)}"}), 400
-        
-        # 添加端点
-        service_checker.add_endpoint(
-            name=data['name'],
-            url=data['url'],
-            expected_status=data.get('expected_status', 200),
-            expected_content=data.get('expected_content'),
-            headers=data.get('headers'),
-            method=data.get('method', 'GET'),
-            body=data.get('body'),
-            interval_minutes=data.get('interval_minutes'),
-            json_check=data.get('json_check')
-        )
-        
-        # 如果调度器已启动，为新端点添加任务
-        if task_scheduler.scheduler.running:
-            for endpoint in service_checker.endpoints:
-                if endpoint["name"] == data['name']:
-                    task_scheduler._add_endpoint_check_job(endpoint)
-                    break
-        
-        return jsonify({"status": "success", "message": f"已添加端点: {data['name']}"}), 201
+        # 直接返回端点数组，而不是包裹在对象中
+        return jsonify(endpoints)
+    
+    # 添加新端点
+    data = request.json
+    if not data or 'name' not in data or 'url' not in data:
+        return jsonify({"error": "请提供端点名称和URL"}), 400
+    
+    # 检查是否已存在同名端点
+    for endpoint in service_checker.endpoints:
+        if endpoint["name"] == data['name']:
+            return jsonify({"error": f"端点已存在: {data['name']}"}), 409
+    
+    # 添加端点
+    service_checker.add_endpoint(
+        name=data['name'],
+        url=data['url'],
+        expected_status=data.get('expected_status', 200),
+        expected_content=data.get('expected_content'),
+        headers=data.get('headers'),
+        method=data.get('method', 'GET'),
+        body=data.get('body'),
+        interval_minutes=data.get('interval_minutes'),
+        json_check=data.get('json_check')
+    )
+    
+    # 如果调度器已启动，为新端点添加任务
+    if task_scheduler.scheduler.running:
+        for endpoint in service_checker.endpoints:
+            if endpoint["name"] == data['name']:
+                task_scheduler._add_endpoint_check_job(endpoint)
+                break
+    
+    return jsonify({"status": "success", "message": f"已添加端点: {data['name']}"}), 201
 
 @app.route('/api/endpoints/<endpoint_name>/interval', methods=['PUT'])
 def update_endpoint_interval(endpoint_name):
@@ -155,30 +157,78 @@ def send_notification():
     else:
         return jsonify({"error": "通知发送失败"}), 500
 
+@app.route('/api/endpoints/<endpoint_name>', methods=['GET', 'PUT', 'DELETE'])
+def endpoint_operations(endpoint_name):
+    """对单个端点进行操作"""
+    # 查找指定的端点
+    target_endpoint = None
+    for endpoint in service_checker.endpoints:
+        if endpoint["name"] == endpoint_name:
+            target_endpoint = endpoint
+            break
+    
+    # GET方法：获取端点详情
+    if request.method == 'GET':
+        if target_endpoint:
+            # 创建可序列化的副本
+            endpoint_copy = dict(target_endpoint)
+            # 添加ID字段
+            endpoint_copy['id'] = endpoint_name
+            # 处理不可序列化的字段
+            if 'json_check' in endpoint_copy and isinstance(endpoint_copy['json_check'], dict):
+                endpoint_copy['json_check'] = dict(endpoint_copy['json_check'])
+            
+            return jsonify(endpoint_copy)
+        else:
+            return jsonify({"status": "error", "message": f"找不到端点: {endpoint_name}"}), 404
+    
+    # PUT方法：更新端点
+    elif request.method == 'PUT':
+        data = request.json
+        if not data or 'url' not in data:
+            return jsonify({"error": "请提供必要的端点信息"}), 400
+        
+        if target_endpoint:
+            # 更新端点配置
+            for key, value in data.items():
+                if key in ['name', 'id']: # 名称作为标识符不能更改
+                    continue
+                target_endpoint[key] = value
+            
+            # 如果调度器已启动，更新任务
+            if task_scheduler.scheduler.running:
+                task_scheduler.update_endpoint_job(endpoint_name, target_endpoint)
+            
+            return jsonify({"status": "success", "message": f"已更新端点: {endpoint_name}"})
+        else:
+            return jsonify({"error": f"找不到端点: {endpoint_name}"}), 404
+    
+    # DELETE方法：删除端点
+    elif request.method == 'DELETE':
+        if target_endpoint:
+            # 删除端点任务
+            if task_scheduler.scheduler.running:
+                task_scheduler.remove_endpoint_job(endpoint_name)
+            
+            # 从列表中删除端点
+            service_checker.endpoints.remove(target_endpoint)
+            
+            return jsonify({"status": "success", "message": f"已删除端点: {endpoint_name}"})
+        else:
+            return jsonify({"error": f"找不到端点: {endpoint_name}"}), 404
+
 def setup_services():
     """初始化所有服务"""
     try:
         global CONFIG
-        # 初始化数据库（如果可用）
-        db_monitoring_enabled = False
-        if DB_AVAILABLE:
-            try:
-                init_db()
-                logger.info("数据库初始化完成")
-                db_monitoring_enabled = True
-            except Exception as e:
-                logger.error(f"数据库初始化失败: {str(e)}")
-                logger.warning("将使用配置文件代替数据库")
-                # 重新加载配置（跳过数据库）
-                CONFIG = load_config(skip_db_settings=True)
-        else:
-            logger.info("数据库模块不可用，跳过数据库初始化")
-            # 确保从环境变量和配置文件重新加载配置（跳过数据库）
-            try:
-                CONFIG = load_config(skip_db_settings=True)
-                logger.info("从环境变量和配置文件加载配置完成")
-            except Exception as e:
-                logger.error(f"从配置文件加载配置失败: {str(e)}")
+        
+        logger.info("数据库功能和系统资源监控已禁用")
+        # 确保从环境变量和配置文件加载配置
+        try:
+            CONFIG = load_config()
+            logger.info("从环境变量和配置文件加载配置完成")
+        except Exception as e:
+            logger.error(f"从配置文件加载配置失败: {str(e)}")
         
         # 加载服务端点配置
         if "endpoints" in CONFIG["service_checks"]:
@@ -196,7 +246,7 @@ def setup_services():
                 )
         
         # 启动调度器
-        task_scheduler.start(db_monitoring_enabled=db_monitoring_enabled)
+        task_scheduler.start()
         
         logger.info("所有服务初始化完成")
         return True
