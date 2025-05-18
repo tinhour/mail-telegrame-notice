@@ -6,8 +6,8 @@ database:
   host: localhost
   port: 5432
   user: postgres
-  password: postgres
-  dbname: evm_tracker
+  password: yourpassword
+  dbname: yourdbname
 
 # 通知配置
 notifications:
@@ -16,20 +16,20 @@ notifications:
     enabled: true
     smtp_server: smtp.qq.com
     smtp_port: 465
-    username: fangfeng335@qq.com
-    password: xuyomfhnxenlbggj
-    sender: fangfeng335@qq.com
+    username: youremail@example.com
+    password: yourpassword
+    sender: thesendmail@example.com
     recipients:
-      - fangfeng335@qq.com
-      - 250969751@qq.com
+      - recevie1@example.com
+      - recevie2@example.com
   
   # Telegram通知
   telegram:
     enabled: true
-    token: "7638015275:AAGuzFYTwgiihQ5iIrYXNJA-JE1ZPvGPWr4"
+    token: "your_telegram_bot_token"
     chat_ids:
-      - 2006080530
-      - -1002615732272
+      - chat_ids
+      - channel_id
 
 # 服务检查配置
 service_checks:
@@ -42,10 +42,10 @@ service_checks:
       expected_content: '"status":"ok"'
       headers:
         Content-Type: "application/json"
-      interval_minutes: 0.2  # 每5分钟检查一次
+      interval_minutes: 5  # 每5分钟检查一次
   
     - name: "Ankr Token是否能用"
-      url: "https://rpc.ankr.com/multichain/498c84e3e1b62890931577d9a7a5eb46b4af57a32bb903ff2b1bb9401d8d77aa"
+      url: "https://rpc.ankr.com/multichain/api-token"
       method: "POST"
       expected_status: 200
       expected_content: '"blockchain":"eth"'  # 简单字符串匹配作为备用检查
